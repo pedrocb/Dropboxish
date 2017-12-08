@@ -45,6 +45,16 @@
         <artifactId>jersey-client</artifactId>
         <version>2.26</version>
       </dependency>
+      <dependency>
+        <groupId>org.glassfish.jersey.media</groupId>
+        <artifactId>jersey-media-moxy</artifactId>
+        <version>2.26</version>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jersey.inject</groupId>
+        <artifactId>jersey-hk2</artifactId>
+        <version>2.26</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
