@@ -11,6 +11,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
+
+import java.io.File;
+import java.io.IOException;
 
 
 public class Client {
@@ -22,10 +26,20 @@ public class Client {
         String address = "http://localhost:9999";
         WebTarget target = httpclient.target(address);
 
+        FileDataBodyPart filePart = new FileDataBodyPart("file", new File("testFile.txt"));
+
         FormDataMultiPart formDataMultiPart = new FormDataMultiPart();
+        FormDataMultiPart multiPart = (FormDataMultiPart) formDataMultiPart.field("foo", "bar").bodyPart(filePart);
         System.out.println("Client Running");
-        /*Response response = target.path("file/download")
-                .request(MediaType.APPLICATION_JSON)
-                .post(); */
+        Response response = target.path("file/upload")
+                .request()
+                .post(Entity.entity(multiPart, multiPart.getMediaType()));
+        System.out.println(response);
+        try {
+            formDataMultiPart.close();
+            multiPart.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
