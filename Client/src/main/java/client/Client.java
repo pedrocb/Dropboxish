@@ -1,5 +1,6 @@
 package client;
 
+import client.cli.Cli;
 import org.eclipse.persistence.jaxb.rs.MOXyJsonProvider;
 import org.glassfish.jersey.CommonProperties;
 
@@ -19,27 +20,7 @@ import java.io.IOException;
 
 public class Client {
     public static void main(String[] args) {
-        javax.ws.rs.client.Client httpclient = ClientBuilder.newClient()
-                .property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
-                .register(MOXyJsonProvider.class)
-                .register(MultiPartFeature.class);
-        String address = "http://localhost:9999";
-        WebTarget target = httpclient.target(address);
-
-        FileDataBodyPart filePart = new FileDataBodyPart("file", new File("testFile.txt"));
-
-        FormDataMultiPart formDataMultiPart = new FormDataMultiPart();
-        FormDataMultiPart multiPart = (FormDataMultiPart) formDataMultiPart.field("foo", "bar").bodyPart(filePart);
-        System.out.println("Client Running");
-        Response response = target.path("file/upload")
-                .request()
-                .post(Entity.entity(multiPart, multiPart.getMediaType()));
-        System.out.println(response);
-        try {
-            formDataMultiPart.close();
-            multiPart.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Cli cli = new Cli();
+        cli.start();
     }
 }
