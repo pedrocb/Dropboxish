@@ -2,6 +2,7 @@ package client.cli;
 
 import org.eclipse.persistence.jaxb.rs.MOXyJsonProvider;
 import org.glassfish.jersey.CommonProperties;
+import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import sun.net.www.http.HttpClient;
 
@@ -19,8 +20,10 @@ public class Cli {
     public Cli() {
         this.httpClient = ClientBuilder.newClient()
                 .property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
+                .property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED")
                 .register(MOXyJsonProvider.class)
                 .register(MultiPartFeature.class);
+
         String address = "http://localhost:9999";
         target = httpClient.target(address);
     }

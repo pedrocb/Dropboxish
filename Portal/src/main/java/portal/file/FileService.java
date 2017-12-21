@@ -6,8 +6,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.List;
 
 @Path("file")
@@ -35,17 +34,19 @@ public class FileService {
     }
 
     @POST
-    @Path("upload")
-    @Consumes({MediaType.MULTIPART_FORM_DATA})
-    public Response uploadFile(@FormDataParam("file") InputStream fileInputStream,
-                               @FormDataParam("file") FormDataContentDisposition fileMetaData) {
+    @Path("upload/{fileName}")
+    @Consumes(MediaType.APPLICATION_OCTET_STREAM)
+    public Response uploadFile(@PathParam("fileName") String fileName, InputStream fileInputStream) {
         try {
             int read = 0;
             byte[] bytes = new byte[1024];
+            OutputStream out = new FileOutputStream(new File("filesReceived/" + fileName));
             while((read = fileInputStream.read(bytes)) != -1) {
-                System.out.println(read);
-                System.out.println(new String(bytes));
+                System.out.println("Read " + read + " bytes.");
+                out.write(bytes, 0, read);
             }
+            out.flush();
+            out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
