@@ -1,22 +1,50 @@
 package portal.file;
 
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.glassfish.jersey.media.multipart.FormDataParam;
-
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
-import java.util.List;
+import java.nio.file.Files;
 
 @Path("file")
 public class FileService {
     @POST
     @Path("download")
     @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response downloadFile(String request) {
-        return Response.status(200).build();
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    public Response downloadFile(String request) throws IOException {
+        JsonObject fileObject;
+        try {
+            JsonReader jsonReader = Json.createReader(new StringReader(request));
+            fileObject = jsonReader.readObject();
+        } catch (Exception e) {
+            return Response.status(402).build();
+        }
+        String fileName = fileObject.getString("file");
+        File file = new File("filesReceived/" + fileName);
+        if(file.exists()) {
+            BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
+            StreamingOutput streamingOutput = out -> {
+                byte[] fileBytes = new byte[1024];
+                int read;
+                while ((read = in.read(fileBytes)) != -1) {
+                    try {
+                        out.write(fileBytes, 0, read);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    out.flush();
+                }
+                out.close();
+            };
+            return Response.status(200).entity(streamingOutput).build();
+        } else {
+            return Response.status(404).build();
+        }
     }
 
     @GET
@@ -38,10 +66,10 @@ public class FileService {
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public Response uploadFile(@PathParam("fileName") String fileName, InputStream fileInputStream) {
         try {
-            int read = 0;
+            int read;
             byte[] bytes = new byte[1024];
             OutputStream out = new FileOutputStream(new File("filesReceived/" + fileName));
-            while((read = fileInputStream.read(bytes)) != -1) {
+            while((read = fileInputStream.read(bytes, 0, 1024)) != -1) {
                 System.out.println("Read " + read + " bytes.");
                 out.write(bytes, 0, read);
             }

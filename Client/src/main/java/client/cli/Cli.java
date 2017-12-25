@@ -36,11 +36,16 @@ public class Cli {
         while(running) {
             System.out.println("Commands:");
             System.out.println("upload <file>");
+            System.out.println("download <file>");
 
             input = scanner.nextLine();
             if(input.startsWith("upload ")) {
                 String[] filenames = input.replace("upload ", "").split(" ");
                 command = new UploadFileCommand(filenames);
+                command.run(target);
+            } else if(input.startsWith("download ")) {
+                String[] filenames = input.replace("download ", "").split(" ");
+                command = new DownloadFileCommand(filenames);
                 command.run(target);
             }
 

@@ -60,6 +60,11 @@
         <artifactId>jersey-media-multipart</artifactId>
         <version>2.26</version>
       </dependency>
+      <dependency>
+        <groupId>org.jgroups</groupId>
+        <artifactId>jgroups</artifactId>
+        <version>4.0.9.Final</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
