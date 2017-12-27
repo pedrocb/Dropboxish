@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package core;
+
+service PoolService {
+    rpc write(WriteBlockRequest) returns (StatusMsg);
+    rpc read(ReadBlockRequest) returns (BlockData);
+}
+
+message StatusMsg {
+    enum Status {
+        OK = 0;
+        NOT_OK = 1;
+    }
+    Status status = 1;
+}
+
+message WriteBlockRequest {
+    BlockID blockID = 1;
+    BlockData blockData = 2;
+}
+
+message ReadBlockRequest {
+    BlockID blockID = 1;
+}
+
+message BlockID {
+    //TODO: How to identify a block
+    int32 block = 1;
+}
+
+message BlockData {
+    bytes data = 1;
+}

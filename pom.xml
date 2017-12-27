@@ -8,6 +8,8 @@
   <modules>
     <module>Portal</module>
     <module>Client</module>
+    <module>Controller</module>
+    <module>Pool</module>
   </modules>
   <packaging>pom</packaging>
 
@@ -64,6 +66,16 @@
         <groupId>org.jgroups</groupId>
         <artifactId>jgroups</artifactId>
         <version>4.0.9.Final</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-all</artifactId>
+        <version>1.7.0</version>
+      </dependency>
+      <dependency>
+        <groupId>dropboxish</groupId>
+        <artifactId>core</artifactId>
+        <version>1.0-SNAPSHOT</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
