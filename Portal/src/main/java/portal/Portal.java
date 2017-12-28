@@ -44,7 +44,6 @@ public class Portal {
          jettyServer.join();
       } catch (SocketException e) {
          System.out.println("Port already in use");
-         return;
       } catch (Exception e) {
          e.printStackTrace();
          try {

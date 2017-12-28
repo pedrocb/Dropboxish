@@ -1,3 +1,5 @@
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
 import org.jgroups.*;
 
 
@@ -20,8 +22,9 @@ import static Helpers.ConsoleHelper.getTextFromConsole;
 
 public class Controller {
     private final String CLUSTER_NAME = "ControllerCluster";
-    JChannel channel;
-    ControllerReceiver receiver;
+    private JChannel channel;
+    private ControllerReceiver receiver;
+    private Server server;
 
 
     public static void main(String[] args) throws Exception{
@@ -34,6 +37,8 @@ public class Controller {
         channel.connect(CLUSTER_NAME);
         receiver = new ControllerReceiver();
         channel.setReceiver(receiver);
+
+        server = ServerBuilder.forPort(0).addService(new ControllerService()).build();
 
         while(true){
             sendMessage();

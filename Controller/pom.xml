@@ -17,5 +17,13 @@
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-all</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dropboxish</groupId>
+            <artifactId>core</artifactId>
+        </dependency>
     </dependencies>
 </project>

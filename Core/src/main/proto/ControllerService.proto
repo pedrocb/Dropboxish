@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package core;
+
+service ControllerService {
+    rpc registerPool(PoolInfo) returns (Empty);
+}
+
+message Empty {
+}
+
+message PoolInfo {
+    Endpoint endpoint = 1;
+}
+
+message Endpoint {
+    string address = 1;
+    int32 port = 2;
+}
+
