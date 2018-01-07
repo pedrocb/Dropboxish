@@ -10,6 +10,7 @@
     <module>Client</module>
     <module>Controller</module>
     <module>Pool</module>
+    <module>Core</module>
   </modules>
   <packaging>pom</packaging>
 

@@ -32,7 +32,7 @@ public class UploadFileCommand implements Command {
                 System.out.println("File " + file + " doesn't exist");
             }
             String contentDisposition = "attachment; filename=\"" + file.getName() + "\"";
-            Response response = target.path(endpoint).path(fileName)
+            Response response = target.path(endpoint).path(file.getName())
                     .request(MediaType.APPLICATION_OCTET_STREAM_TYPE)
                     .header("Content-Disposition", contentDisposition)
                     .post(Entity.entity(fileInStream, MediaType.APPLICATION_OCTET_STREAM_TYPE));

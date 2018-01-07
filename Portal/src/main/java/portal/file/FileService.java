@@ -1,5 +1,8 @@
 package portal.file;
 
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
@@ -8,7 +11,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
-import java.nio.file.Files;
+import java.util.concurrent.TimeUnit;
 
 @Path("file")
 public class FileService {
@@ -26,7 +29,7 @@ public class FileService {
         }
         String fileName = fileObject.getString("file");
         File file = new File("filesReceived/" + fileName);
-        if(file.exists()) {
+        if (file.exists()) {
             BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
             StreamingOutput streamingOutput = out -> {
                 byte[] fileBytes = new byte[1024];
@@ -69,15 +72,38 @@ public class FileService {
             int read;
             byte[] bytes = new byte[1024];
             OutputStream out = new FileOutputStream(new File("filesReceived/" + fileName));
-            while((read = fileInputStream.read(bytes, 0, 1024)) != -1) {
+            while ((read = fileInputStream.read(bytes, 0, 1024)) != -1) {
                 System.out.println("Read " + read + " bytes.");
                 out.write(bytes, 0, read);
             }
+            int id = generateId();
+            RequestHandler requestHandler = new RequestHandler(id);
+            int port = requestHandler.getPort();
+            requestHandler.start();
+            sendMessage(id + " localhost " + port + " NewFile");
             out.flush();
             out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
         return Response.status(200).build();
+    }
+
+    private void sendMessage(String message) {
+        try {
+            JChannel channel = new JChannel();
+            channel.connect("ControllerCluster");
+            channel.send(new Message(null, message));
+            //Sometimes the message drops because we disconnect
+            //TODO: make send msg async? not matter if this leaves
+            TimeUnit.SECONDS.sleep(1);
+            channel.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private int generateId() {
+        return (int) Math.floor(Math.random() * Integer.MAX_VALUE);
     }
 }

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package core;
+
+service PortalService {
+    rpc handleRequest(RequestInfo) returns (RequestReply);
+}
+
+message RequestReply {
+    bool gotTheJob = 1;
+}
+
+message RequestInfo {
+    int32 id = 1;
+    string type = 2;
+}
+
