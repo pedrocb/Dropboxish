@@ -12,9 +12,9 @@ public class RequestHandler extends Thread{
     private Server server;
     private int port;
 
-    public RequestHandler(int id) {
+    public RequestHandler(int id, byte[] fileData) {
         this.id = id;
-        this.server = ServerBuilder.forPort(0).addService(new RequestHandlerService(id)).build();
+        this.server = ServerBuilder.forPort(0).addService(new RequestHandlerService(id, fileData)).build();
         try{
             server.start();
             System.out.println("Request handler started on "+server.getPort());

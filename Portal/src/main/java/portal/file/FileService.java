@@ -1,5 +1,6 @@
 package portal.file;
 
+import io.grpc.internal.IoUtils;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 
@@ -76,13 +77,16 @@ public class FileService {
                 System.out.println("Read " + read + " bytes.");
                 out.write(bytes, 0, read);
             }
+            out.flush();
+            out.close();
             int id = generateId();
-            RequestHandler requestHandler = new RequestHandler(id);
+            //TODO make data [] available right when received
+            byte[] data = IoUtils.toByteArray(new FileInputStream(new File("filesReceived/" + fileName)));
+            System.out.println("Data length " + data.length);
+            RequestHandler requestHandler = new RequestHandler(id, data);
             int port = requestHandler.getPort();
             requestHandler.start();
             sendMessage(id + " localhost " + port + " NewFile");
-            out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -5,7 +5,12 @@ option java_multiple_files = true;
 package core;
 
 service PortalService {
-    rpc handleRequest(RequestInfo) returns (RequestReply);
+    rpc handleRequest (RequestInfo) returns (RequestReply);
+    rpc uploadFileRequest (RequestInfo) returns (stream FileData);
+}
+
+message FileData {
+    bytes data = 1;
 }
 
 message RequestReply {
