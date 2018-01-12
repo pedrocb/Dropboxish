@@ -1,13 +1,17 @@
 package pool;
 
+import core.RegisterPoolRequest;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
 
 import java.io.IOException;
 
 public class Pool {
 
     private Server server;
+    private String address = "localhost";
 
     public Pool() {
        this.server = ServerBuilder.forPort(0).addService(new PoolService()).build();
@@ -17,10 +21,24 @@ public class Pool {
         Pool pool = new Pool();
         try {
             pool.start();
+            pool.registerPool();
             pool.blockUntilShutdown();
         } catch (IOException e ) {
             System.out.println("Pool failed to start");
         } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void registerPool() {
+        JChannel channel = null;
+        try {
+            channel = new JChannel();
+            channel.connect("ControllerCluster");
+            RegisterPoolRequest registerPoolRequest = new RegisterPoolRequest(this.address + ":" + server.getPort());
+            channel.send(new Message(null, registerPoolRequest));
+            System.out.println("Register Sent");
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

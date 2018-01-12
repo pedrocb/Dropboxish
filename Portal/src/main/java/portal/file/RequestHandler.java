@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class RequestHandler extends Thread{
+public class RequestHandler extends Thread {
     private int id;
     private Server server;
     private int port;

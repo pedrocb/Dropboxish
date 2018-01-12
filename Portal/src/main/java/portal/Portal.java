@@ -28,7 +28,6 @@ public class Portal {
               .register(MoxyJsonFeature.class)
               .register(MultiPartFeature.class);
       ServletContextHandler context = new ServletContextHandler(jettyServer, "/*");
-
       context.addServlet(new ServletHolder(new ServletContainer(resourceConfig)), "/*");
       NCSARequestLog requestLog = new NCSARequestLog();
       requestLog.setAppend(true);

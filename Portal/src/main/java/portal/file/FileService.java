@@ -1,9 +1,9 @@
 package portal.file;
 
+import core.*;
 import io.grpc.internal.IoUtils;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
-
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
@@ -86,18 +86,19 @@ public class FileService {
             RequestHandler requestHandler = new RequestHandler(id, data);
             int port = requestHandler.getPort();
             requestHandler.start();
-            sendMessage(id + " localhost " + port + " NewFile");
+            UploadFileRequest request = new UploadFileRequest(fileName);
+            sendMessage(request);
         } catch (IOException e) {
             e.printStackTrace();
         }
         return Response.status(200).build();
     }
 
-    private void sendMessage(String message) {
+    private void sendMessage(JGroupRequest request) {
         try {
             JChannel channel = new JChannel();
             channel.connect("ControllerCluster");
-            channel.send(new Message(null, message));
+            channel.send(new Message(null, request));
             //Sometimes the message drops because we disconnect
             //TODO: make send msg async? not matter if this leaves
             TimeUnit.SECONDS.sleep(1);
