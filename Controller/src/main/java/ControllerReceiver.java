@@ -5,15 +5,12 @@ import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import org.jgroups.util.Util;
-import sun.misc.Request;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 
@@ -42,7 +39,8 @@ public class ControllerReceiver extends ReceiverAdapter {
         System.out.println("setState Called");
         ControllerState state = Util.objectFromStream(new DataInputStream(input));
         synchronized (this.state) {
-            this.state = state;
+            this.state.getPools().clear();
+            this.state.getPools().addAll(state.getPools());
         }
         System.out.println(state);
     }

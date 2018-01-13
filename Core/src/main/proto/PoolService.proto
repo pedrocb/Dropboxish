@@ -19,7 +19,7 @@ message StatusMsg {
 
 message WriteBlockRequest {
     BlockID blockID = 1;
-    BlockData blockData = 2;
+    BlockData data = 2;
 }
 
 message ReadBlockRequest {
@@ -27,8 +27,8 @@ message ReadBlockRequest {
 }
 
 message BlockID {
-    //TODO: How to identify a block
-    int32 block = 1;
+    int32 fileId = 1;
+    int32 blockIndex= 2;
 }
 
 message BlockData {

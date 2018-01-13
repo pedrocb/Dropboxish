@@ -18,4 +18,8 @@ public class ControllerState implements Serializable {
     public String toString() {
         return "Pools: " + storagePools;
     }
+
+    public ArrayList<String> getPools() {
+        return storagePools;
+    }
 }

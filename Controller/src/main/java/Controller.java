@@ -1,3 +1,7 @@
+import com.google.protobuf.ByteString;
+import core.*;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.jgroups.*;
@@ -64,6 +68,26 @@ public class Controller {
                 synchronized (state) {
                     System.out.println(state);
                 }
+            } else if (input.equals("address")) {
+                System.out.println(channel.getAddress());
+            } else if (input.equals("file")) {
+                String pool;
+                synchronized (state) {
+                    pool = state.getPools().get(0);
+                }
+                ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(pool).usePlaintext(true).build();
+                PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
+                WriteBlockRequest request = WriteBlockRequest.newBuilder().setBlockID(BlockID.newBuilder().setFileId(0).setBlockIndex(0)).setData(BlockData.newBuilder().setData(ByteString.copyFromUtf8("ola"))).build();
+                System.out.println(poolStub.write(request));
+            } else if (input.equals("read")) {
+                String pool;
+                synchronized (state) {
+                    pool = state.getPools().get(0);
+                }
+                ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(pool).usePlaintext(true).build();
+                PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
+                ReadBlockRequest request = ReadBlockRequest.newBuilder().setBlockID(BlockID.newBuilder().setFileId(0).setBlockIndex(0)).build();
+                System.out.println(poolStub.read(request));
             }
             Message msg = new Message(null,input);
             channel.send(msg);

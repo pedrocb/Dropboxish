@@ -12,6 +12,7 @@ public class Pool {
 
     private Server server;
     private String address = "localhost";
+    public static String dataDirectory = "data";
 
     public Pool() {
        this.server = ServerBuilder.forPort(0).addService(new PoolService()).build();
@@ -21,6 +22,7 @@ public class Pool {
         Pool pool = new Pool();
         try {
             pool.start();
+            dataDirectory += pool.server.getPort();
             pool.registerPool();
             pool.blockUntilShutdown();
         } catch (IOException e ) {
