@@ -8,11 +8,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class RequestHandler extends Thread {
-    private int id;
+    private String id;
     private Server server;
     private int port;
 
-    public RequestHandler(int id, byte[] fileData) {
+    public RequestHandler(String id, byte[] fileData) {
         this.id = id;
         this.server = ServerBuilder.forPort(0).addService(new RequestHandlerService(id, fileData)).build();
         try{

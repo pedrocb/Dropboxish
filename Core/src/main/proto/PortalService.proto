@@ -18,7 +18,7 @@ message RequestReply {
 }
 
 message RequestInfo {
-    int32 id = 1;
+    string id = 1;
     string type = 2;
 }
 

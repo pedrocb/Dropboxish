@@ -12,6 +12,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Path("file")
@@ -79,14 +80,12 @@ public class FileService {
             }
             out.flush();
             out.close();
-            int id = generateId();
-            //TODO make data [] available right when received
             byte[] data = IoUtils.toByteArray(new FileInputStream(new File("filesReceived/" + fileName)));
             System.out.println("Data length " + data.length);
+            String id = UUID.randomUUID().toString();
             RequestHandler requestHandler = new RequestHandler(id, data);
-            int port = requestHandler.getPort();
             requestHandler.start();
-            UploadFileRequest request = new UploadFileRequest(fileName);
+            UploadFileRequest request = new UploadFileRequest(id, fileName, "localhost:"+requestHandler.getPort());
             sendMessage(request);
         } catch (IOException e) {
             e.printStackTrace();

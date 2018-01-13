@@ -11,11 +11,11 @@ import static java.util.Arrays.copyOfRange;
 
 public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBase {
 
-    private int requestId;
+    private String requestId;
     private boolean isJobTaken;
     private byte[] fileData;
 
-    public RequestHandlerService(int requestId, byte[] fileData) {
+    public RequestHandlerService(String requestId, byte[] fileData) {
         super();
         this.requestId = requestId;
         isJobTaken = false;
@@ -26,7 +26,7 @@ public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBa
     public void handleRequest(RequestInfo request, StreamObserver<RequestReply> responseObserver) {
         RequestReply reply;
         synchronized (this) {
-            if (request.getId() == requestId && !isJobTaken) {
+            if (request.getId().equals(requestId) && !isJobTaken) {
                 reply = RequestReply.newBuilder().setGotTheJob(true).build();
                 isJobTaken = true;
                 System.out.println("Replied with true to request " + requestId);

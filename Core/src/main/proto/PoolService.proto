@@ -27,7 +27,7 @@ message ReadBlockRequest {
 }
 
 message BlockID {
-    int32 fileId = 1;
+    string fileId = 1;
     int32 blockIndex= 2;
 }
 
