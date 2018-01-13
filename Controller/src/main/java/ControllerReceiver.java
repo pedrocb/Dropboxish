@@ -1,16 +1,23 @@
+import com.google.protobuf.ByteString;
 import core.*;
+import com.backblaze.erasure.ReedSolomon;
+import core.PortalServiceGrpc;
+import core.RequestInfo;
+import core.RequestReply;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import org.jgroups.util.Util;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
@@ -56,41 +63,16 @@ public class ControllerReceiver extends ReceiverAdapter {
     //when a new request is received
     public void receive(Message msg) {
         JGroupRequest request = msg.getObject();
-        System.out.println("got msg");
+        System.out.println("got msg ");
         if(request.getType() == JGroupRequest.RequestType.UploadFile) {
+            System.out.println("Got a upload file request from " + msg.getSrc());
             lock.lock();
+            String address = request.getAddress();
             try {
-                UploadFileRequest uploadFileRequest = (UploadFileRequest) request;
-                System.out.println("I got upload file request!");
-                TimeUnit.SECONDS.sleep(15);
-                System.out.println("");
-                System.out.println("Got a upload file request from " + msg.getSrc());
-                String[] args = ((String) msg.getObject()).split(" ");
-                int requestId = Integer.parseInt(args[0]);
-                String address = args[1];
-                int port = Integer.parseInt(args[2]);
-                String type = args[3];
-                // Try to connect to portal, only the first will get the job
-                System.out.println("Requesting job " + requestId + " to " + address + ":" + port);
-                try {
-                    ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address + ":" + port).usePlaintext(true).build();
-                    PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                    RequestInfo requestInfo = RequestInfo.newBuilder().setId(requestId).build();
-                    RequestReply requestReply = portalStub.handleRequest(requestInfo);
-                    Boolean gotTheJob = requestReply.getGotTheJob();
-                    System.out.println("Got the job " + requestId + ": " + gotTheJob);
-                    if (gotTheJob) {
-                        if (type.equals("NewFile")) {
-                            uploadFileWork(requestId, portalStub);
-                        } else {
-                            fakeSomeWork(requestId);
-                        }
-                    }
-                } catch (Exception e) {
-                    System.out.println("it caput" + e.getMessage());
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
+                PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
+                RequestInfo requestInfo = RequestInfo.newBuilder().build();
+                RequestReply requestReply = portalStub.handleRequest(requestInfo);
             } finally {
                 lock.unlock();
             }
@@ -105,8 +87,8 @@ public class ControllerReceiver extends ReceiverAdapter {
         }
     }
 
-    private void uploadFileWork(int requestId, PortalServiceGrpc.PortalServiceBlockingStub stub){
-        RequestInfo request = RequestInfo.newBuilder().setId(requestId).build();
+    private void uploadFileWork(String requestId, PortalServiceGrpc.PortalServiceBlockingStub stub){
+        /*RequestInfo request = RequestInfo.newBuilder().build();
         Iterator<FileData> fileDataIterator;
 
         try {
@@ -114,10 +96,81 @@ public class ControllerReceiver extends ReceiverAdapter {
             for(int i = 1; fileDataIterator.hasNext(); i++){
                 FileData fileData = fileDataIterator.next();
                 System.out.println("Recieved piece #"+i+" lenght "+fileData.getData().toByteArray().length);
+                byte [] data = fileData.getData().toByteArray();
+                byte[][] shards = encondeReedSolomon(data);
+
+                for(int j=0; j<shards.length; j++){
+                    try{
+                        ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(state.getPools().get(0)).usePlaintext(true).build();
+                        PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
+                        BlockID blockID = BlockID.newBuilder().setFileId(UUID.randomUUID().toString()).setBlockIndex(j).build();
+                        BlockData blockData = BlockData.newBuilder().setData(ByteString.copyFrom(shards[j])).build();
+                        WriteBlockRequest writeBlockRequest = WriteBlockRequest.newBuilder().setBlockID(blockID).setData(blockData).build();
+                        StatusMsg statusMsg = poolStub.write(writeBlockRequest);
+                        System.out.println(statusMsg.getStatusValue());
+                    } catch (Exception e){
+                        e.printStackTrace();
+                    }
+                }
+                //Simule that 2 shards are missing;
+                boolean [] shardPresent = {false, true, true, true, true, false};
+                int shardSize = shards[0].length;
+                for(int j = 0; j < shardPresent.length; j++){
+                    if(!shardPresent[j]){
+                        shards[j] = new byte[shardSize];
+                    }
+                }
+                byte [] decodedData = decodeReedSolomon(shards,shardPresent);
             }
         } catch (Exception e){
             e.printStackTrace();
         }
+    }
+
+    private byte[][] encondeReedSolomon (byte[] data) {
+        int DATA_SHARDS = 4;
+        int PARITY_SHARDS = 2;
+        int TOTAL_SHARDS = DATA_SHARDS + PARITY_SHARDS;
+        int fileSize = data.length;
+        int storedSize = fileSize + Integer.BYTES;
+        int shardSize = (storedSize + DATA_SHARDS - 1)/DATA_SHARDS;
+        System.out.println("Original data: "+Arrays.toString(data));
+
+        byte [] allBytes = new byte[shardSize * DATA_SHARDS];
+        ByteBuffer.wrap(allBytes).putInt(fileSize).put(data);
+        byte [][] shards = new byte[TOTAL_SHARDS][shardSize];
+        for(int i = 0; i < DATA_SHARDS; i++){
+            System.arraycopy(allBytes, i*shardSize, shards[i],0,shardSize);
+        }
+
+        //Create additional shards
+        ReedSolomon reedSolomon = ReedSolomon.create(DATA_SHARDS, PARITY_SHARDS);
+        reedSolomon.encodeParity(shards,0,shardSize);
+        return shards;
+    }
+
+
+    //shards that failed are empty arrays, shardsPresent[i] is true if shard[i] is present
+    private byte[] decodeReedSolomon (byte [][] shards, boolean [] shardPresent) {
+        int DATA_SHARDS = 4;
+        int PARITY_SHARDS = 2;
+        int SHARD_SIZE = shards[0].length;
+
+        //Recover missing shards
+        ReedSolomon reedSolomon = ReedSolomon.create(DATA_SHARDS, PARITY_SHARDS);
+        reedSolomon.decodeMissing(shards,shardPresent, 0, SHARD_SIZE);
+
+        byte[] allBytes = new byte[SHARD_SIZE*DATA_SHARDS];
+        for(int i = 0; i < DATA_SHARDS; i++){
+            System.arraycopy(shards[i],0,allBytes,i*SHARD_SIZE,SHARD_SIZE);
+        }
+        int fileSize = ByteBuffer.wrap(allBytes).getInt();
+        byte [] data = new byte[fileSize];
+        System.arraycopy(allBytes,Integer.BYTES,data, 0, fileSize);
+
+        System.out.println("Recovered File: "+Arrays.toString(data));
+        return data;
+        */
     }
 
     private void fakeSomeWork(int requestId) {
@@ -140,4 +193,5 @@ public class ControllerReceiver extends ReceiverAdapter {
     public void setLock(Lock lock) {
         this.lock = lock;
     }
+
 }

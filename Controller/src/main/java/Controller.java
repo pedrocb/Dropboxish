@@ -8,6 +8,7 @@ import org.jgroups.*;
 import org.jgroups.blocks.locking.LockService;
 
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
@@ -81,7 +82,7 @@ public class Controller {
                 }
                 ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(pool).usePlaintext(true).build();
                 PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
-                WriteBlockRequest request = WriteBlockRequest.newBuilder().setBlockID(BlockID.newBuilder().setFileId(0).setBlockIndex(0)).setData(BlockData.newBuilder().setData(ByteString.copyFromUtf8("ola"))).build();
+                WriteBlockRequest request = WriteBlockRequest.newBuilder().setBlockID(BlockID.newBuilder().setFileId(UUID.randomUUID().toString()).setBlockIndex(0)).setData(BlockData.newBuilder().setData(ByteString.copyFromUtf8("ola"))).build();
                 System.out.println(poolStub.write(request));
             } else if (input.equals("read")) {
                 String pool;
@@ -90,7 +91,7 @@ public class Controller {
                 }
                 ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(pool).usePlaintext(true).build();
                 PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
-                ReadBlockRequest request = ReadBlockRequest.newBuilder().setBlockID(BlockID.newBuilder().setFileId(0).setBlockIndex(0)).build();
+                ReadBlockRequest request = ReadBlockRequest.newBuilder().setBlockID(BlockID.newBuilder().setFileId(UUID.randomUUID().toString()).setBlockIndex(0)).build();
                 System.out.println(poolStub.read(request));
             }
             Message msg = new Message(null,input);

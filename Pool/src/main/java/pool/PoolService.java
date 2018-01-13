@@ -14,7 +14,7 @@ public class PoolService extends PoolServiceGrpc.PoolServiceImplBase {
     @Override
     public void write(WriteBlockRequest request, StreamObserver<StatusMsg> responseObserver) {
         BlockData data = request.getData();
-        int fileId = request.getBlockID().getFileId();
+        String fileId = request.getBlockID().getFileId();
         int blockIndex = request.getBlockID().getBlockIndex();
         System.out.println("Writing data: " + data.getData() + " on fileID = " + fileId + " block = " + blockIndex);
         String fileDir = Pool.dataDirectory + "/" + fileId;
@@ -32,14 +32,15 @@ public class PoolService extends PoolServiceGrpc.PoolServiceImplBase {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println("wrote file");
         responseObserver.onNext(StatusMsg.newBuilder().setStatusValue(0).build());
         responseObserver.onCompleted();
     }
 
     @Override
     public void read(ReadBlockRequest request, StreamObserver<BlockData> responseObserver) {
-        int fileId = request.getBlockID().getFileId();
-        int blockIndex = request.getBlockID().getFileId();
+        String fileId = request.getBlockID().getFileId();
+        int blockIndex = request.getBlockID().getBlockIndex();
         File dataBlockFile = new File(Pool.dataDirectory + "/" + fileId + "/" + blockIndex);
         byte[] b = new byte[(int) dataBlockFile.length()];
         try {

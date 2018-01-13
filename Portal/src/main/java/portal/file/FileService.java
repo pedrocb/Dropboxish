@@ -17,6 +17,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
 import java.sql.Time;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -94,6 +95,8 @@ public class FileService {
             RequestHandlerService service = new RequestHandlerService(data, lock);
             Server server = ServerBuilder.forPort(0).addService(service).build();
             server.start();
+            UploadFileRequest request = new UploadFileRequest(fileName, "localhost:"+server.getPort());
+            sendMessage(request);
             if(lock.tryLock(10, TimeUnit.SECONDS)) {
                 //A controller responded
 
@@ -101,8 +104,6 @@ public class FileService {
                 server.shutdown();
                 //No controller responded in 10 seconds
             }
-            UploadFileRequest request = new UploadFileRequest(fileName);
-            sendMessage(request);
             server.awaitTermination();
 
         } catch (IOException | InterruptedException e) {

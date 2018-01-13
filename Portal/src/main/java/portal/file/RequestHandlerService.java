@@ -25,6 +25,7 @@ public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBa
 
     @Override
     public void handleRequest(RequestInfo request, StreamObserver<RequestReply> responseObserver) {
+        lock.unlock();
         String address = request.getAddress();
         int port = request.getPort();
         ManagedChannel channel = ManagedChannelBuilder.forAddress(address,port).usePlaintext(true).build();
