@@ -1,15 +1,21 @@
 import core.*;
+import com.backblaze.erasure.ReedSolomon;
+import core.FileData;
+import core.PortalServiceGrpc;
+import core.RequestInfo;
+import core.RequestReply;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import org.jgroups.util.Util;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
@@ -99,10 +105,71 @@ public class ControllerReceiver extends ReceiverAdapter {
             for(int i = 1; fileDataIterator.hasNext(); i++){
                 FileData fileData = fileDataIterator.next();
                 System.out.println("Recieved piece #"+i+" lenght "+fileData.getData().toByteArray().length);
+                byte [] data = fileData.getData().toByteArray();
+                byte[][] shards = encondeReedSolomon(data);
+
+                //Simule that 2 shards are missing;
+                boolean [] shardPresent = {false, true, true, true, true, false};
+                int shardSize = shards[0].length;
+                for(int j = 0; j < shardPresent.length; j++){
+                    if(!shardPresent[j]){
+                        shards[j] = new byte[shardSize];
+                    }
+                }
+
+                byte [] decodedData = decodeReedSolomon(shards,shardPresent);
+
+
+
             }
         } catch (Exception e){
             e.printStackTrace();
         }
+    }
+
+    private byte[][] encondeReedSolomon (byte[] data) {
+        int DATA_SHARDS = 4;
+        int PARITY_SHARDS = 2;
+        int TOTAL_SHARDS = DATA_SHARDS + PARITY_SHARDS;
+        int fileSize = data.length;
+        int storedSize = fileSize + Integer.BYTES;
+        int shardSize = (storedSize + DATA_SHARDS - 1)/DATA_SHARDS;
+        System.out.println("Original data: "+Arrays.toString(data));
+
+        byte [] allBytes = new byte[shardSize * DATA_SHARDS];
+        ByteBuffer.wrap(allBytes).putInt(fileSize).put(data);
+        byte [][] shards = new byte[TOTAL_SHARDS][shardSize];
+        for(int i = 0; i < DATA_SHARDS; i++){
+            System.arraycopy(allBytes, i*shardSize, shards[i],0,shardSize);
+        }
+
+        //Create additional shards
+        ReedSolomon reedSolomon = ReedSolomon.create(DATA_SHARDS, PARITY_SHARDS);
+        reedSolomon.encodeParity(shards,0,shardSize);
+        return shards;
+    }
+
+
+    //shards that failed are empty arrays, shardsPresent[i] is true if shard[i] is present
+    private byte[] decodeReedSolomon (byte [][] shards, boolean [] shardPresent) {
+        int DATA_SHARDS = 4;
+        int PARITY_SHARDS = 2;
+        int SHARD_SIZE = shards[0].length;
+
+        //Recover missing shards
+        ReedSolomon reedSolomon = ReedSolomon.create(DATA_SHARDS, PARITY_SHARDS);
+        reedSolomon.decodeMissing(shards,shardPresent, 0, SHARD_SIZE);
+
+        byte[] allBytes = new byte[SHARD_SIZE*DATA_SHARDS];
+        for(int i = 0; i < DATA_SHARDS; i++){
+            System.arraycopy(shards[i],0,allBytes,i*SHARD_SIZE,SHARD_SIZE);
+        }
+        int fileSize = ByteBuffer.wrap(allBytes).getInt();
+        byte [] data = new byte[fileSize];
+        System.arraycopy(allBytes,Integer.BYTES,data, 0, fileSize);
+
+        System.out.println("Recovered File: "+Arrays.toString(data));
+        return data;
     }
 
     private void fakeSomeWork(int requestId) {
