@@ -35,7 +35,7 @@ public class Pool {
     private void registerPool() {
         JChannel channel = null;
         try {
-            channel = new JChannel();
+            channel = new JChannel("tcp.xml");
             channel.connect("ControllerCluster");
             RegisterPoolRequest registerPoolRequest = new RegisterPoolRequest(this.address + ":" + server.getPort());
             channel.send(new Message(null, registerPoolRequest));

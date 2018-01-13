@@ -4,13 +4,14 @@ import java.io.Serializable;
 
 public class JGroupRequest implements Serializable {
     protected RequestType type;
+    protected long timestamp;
 
     public enum RequestType {
         UploadFile,
         RegisterPool
     }
     public JGroupRequest() {
-
+        this.timestamp = System.currentTimeMillis() / 1000L;
     }
 
     public RequestType getType() {

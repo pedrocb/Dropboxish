@@ -5,9 +5,11 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.jgroups.*;
+import org.jgroups.blocks.locking.LockService;
 
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 import static Helpers.ConsoleHelper.getTextFromConsole;
 
@@ -37,16 +39,18 @@ public class Controller {
 
     public static void main(String[] args) throws Exception{
         new Controller().start();
-
     }
 
     private void start() throws Exception {
-        channel = new JChannel();
+        channel = new JChannel("tcp.xml");
         channel.connect(CLUSTER_NAME);
         state = new ControllerState();
         receiver = new ControllerReceiver(state);
         channel.setReceiver(receiver);
         channel.getState(null, 0);
+        LockService lockService = new LockService(channel);
+        Lock lock = lockService.getLock("WorkerLock");
+        receiver.setLock(lock);
 
         server = ServerBuilder.forPort(0).addService(new ControllerService()).build();
 

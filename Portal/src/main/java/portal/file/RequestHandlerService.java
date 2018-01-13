@@ -1,57 +1,34 @@
 package portal.file;
 
 import com.google.protobuf.ByteString;
-import core.FileData;
-import core.RequestInfo;
-import core.RequestReply;
-import core.PortalServiceGrpc;
+import core.*;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
-import static java.util.Arrays.copyOfRange;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBase {
 
-    private int requestId;
-    private boolean isJobTaken;
     private byte[] fileData;
+    private boolean sentFile;
+    private javax.ws.rs.core.Response response;
+    private ReentrantLock lock;
 
-    public RequestHandlerService(int requestId, byte[] fileData) {
+    public RequestHandlerService(byte[] fileData, ReentrantLock lock) {
         super();
-        this.requestId = requestId;
-        isJobTaken = false;
         this.fileData = fileData;
+        this.response = javax.ws.rs.core.Response.status(500).build();
+        this.lock = lock;
+        lock.lock();
     }
 
     @Override
     public void handleRequest(RequestInfo request, StreamObserver<RequestReply> responseObserver) {
-        RequestReply reply;
-        synchronized (this) {
-            if (request.getId() == requestId && !isJobTaken) {
-                reply = RequestReply.newBuilder().setGotTheJob(true).build();
-                isJobTaken = true;
-                System.out.println("Replied with true to request " + requestId);
-            } else {
-                reply = RequestReply.newBuilder().setGotTheJob(false).build();
-                System.out.println("Replied with false to request " + requestId);
-            }
-        }
-        responseObserver.onNext(reply);
-        responseObserver.onCompleted();
-    }
-
-    @Override
-    public void uploadFileRequest(RequestInfo request, StreamObserver<FileData> responseObserver) {
-
-        int chunkSize = 1024, from = 0;
-        int fileSize = fileData.length;
-        while (from < fileSize) {
-            int to = from + chunkSize >= fileSize ? fileSize : from + chunkSize;
-            byte[] chunk = copyOfRange(fileData, from, to);
-            FileData fileData = FileData.newBuilder().setData(ByteString.copyFrom(chunk)).build();
-            responseObserver.onNext(fileData);
-            from += chunkSize;
-        }
-
+        String address = request.getAddress();
+        int port = request.getPort();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(address,port).usePlaintext(true).build();
+        ControllerServiceGrpc.ControllerServiceBlockingStub controllerStub = ControllerServiceGrpc.newBlockingStub(channel);
         responseObserver.onCompleted();
     }
 }

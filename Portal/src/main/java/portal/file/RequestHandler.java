@@ -4,17 +4,15 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 
 public class RequestHandler extends Thread {
     private int id;
     private Server server;
     private int port;
 
-    public RequestHandler(int id, byte[] fileData) {
+    public RequestHandler(byte[] fileData) {
         this.id = id;
-        this.server = ServerBuilder.forPort(0).addService(new RequestHandlerService(id, fileData)).build();
+        this.server = ServerBuilder.forPort(0).addService(new RequestHandlerService(fileData, lock)).build();
         try{
             server.start();
             System.out.println("Request handler started on "+server.getPort());

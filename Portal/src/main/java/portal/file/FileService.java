@@ -1,9 +1,13 @@
 package portal.file;
 
 import core.*;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
 import io.grpc.internal.IoUtils;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
+import org.jgroups.blocks.MessageDispatcher;
+
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
@@ -12,7 +16,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
+import java.sql.Time;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Path("file")
 public class FileService {
@@ -79,16 +86,26 @@ public class FileService {
             }
             out.flush();
             out.close();
-            int id = generateId();
             //TODO make data [] available right when received
             byte[] data = IoUtils.toByteArray(new FileInputStream(new File("filesReceived/" + fileName)));
             System.out.println("Data length " + data.length);
-            RequestHandler requestHandler = new RequestHandler(id, data);
-            int port = requestHandler.getPort();
-            requestHandler.start();
+
+            ReentrantLock lock = new ReentrantLock();
+            RequestHandlerService service = new RequestHandlerService(data, lock);
+            Server server = ServerBuilder.forPort(0).addService(service).build();
+            server.start();
+            if(lock.tryLock(10, TimeUnit.SECONDS)) {
+                //A controller responded
+
+            } else {
+                server.shutdown();
+                //No controller responded in 10 seconds
+            }
             UploadFileRequest request = new UploadFileRequest(fileName);
             sendMessage(request);
-        } catch (IOException e) {
+            server.awaitTermination();
+
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
         return Response.status(200).build();
@@ -96,8 +113,9 @@ public class FileService {
 
     private void sendMessage(JGroupRequest request) {
         try {
-            JChannel channel = new JChannel();
+            JChannel channel = new JChannel("tcp.xml");
             channel.connect("ControllerCluster");
+            MessageDispatcher messageDispatcher = new MessageDispatcher(channel);
             channel.send(new Message(null, request));
             //Sometimes the message drops because we disconnect
             //TODO: make send msg async? not matter if this leaves

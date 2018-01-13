@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 
 /*
@@ -20,14 +21,17 @@ import java.util.concurrent.TimeUnit;
 
 public class ControllerReceiver extends ReceiverAdapter {
     ControllerState state = new ControllerState();
+    Lock lock;
 
     public ControllerReceiver(ControllerState state) {
         this.state = state;
+        this.lock = lock;
     }
 
     @Override
     public void getState(OutputStream output) throws Exception {
         synchronized (state) {
+
             Util.objectToStream(state, new DataOutputStream(output));
         }
         System.out.println("getState Called");
@@ -54,30 +58,41 @@ public class ControllerReceiver extends ReceiverAdapter {
         JGroupRequest request = msg.getObject();
         System.out.println("got msg");
         if(request.getType() == JGroupRequest.RequestType.UploadFile) {
-            System.out.println("Got a upload file request from " + msg.getSrc());
-            String[] args = ((String) msg.getObject()).split(" ");
-            int requestId = Integer.parseInt(args[0]);
-            String address = args[1];
-            int port = Integer.parseInt(args[2]);
-            String type = args[3];
-            // Try to connect to portal, only the first will get the job
-            System.out.println("Requesting job " + requestId + " to " + address + ":" + port);
+            lock.lock();
             try {
-                ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address + ":" + port).usePlaintext(true).build();
-                PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().setId(requestId).build();
-                RequestReply requestReply = portalStub.handleRequest(requestInfo);
-                Boolean gotTheJob = requestReply.getGotTheJob();
-                System.out.println("Got the job " + requestId + ": " + gotTheJob);
-                if (gotTheJob) {
-                    if (type.equals("NewFile")) {
-                        uploadFileWork(requestId, portalStub);
-                    } else {
-                        fakeSomeWork(requestId);
+                UploadFileRequest uploadFileRequest = (UploadFileRequest) request;
+                System.out.println("I got upload file request!");
+                TimeUnit.SECONDS.sleep(15);
+                System.out.println("");
+                System.out.println("Got a upload file request from " + msg.getSrc());
+                String[] args = ((String) msg.getObject()).split(" ");
+                int requestId = Integer.parseInt(args[0]);
+                String address = args[1];
+                int port = Integer.parseInt(args[2]);
+                String type = args[3];
+                // Try to connect to portal, only the first will get the job
+                System.out.println("Requesting job " + requestId + " to " + address + ":" + port);
+                try {
+                    ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address + ":" + port).usePlaintext(true).build();
+                    PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
+                    RequestInfo requestInfo = RequestInfo.newBuilder().setId(requestId).build();
+                    RequestReply requestReply = portalStub.handleRequest(requestInfo);
+                    Boolean gotTheJob = requestReply.getGotTheJob();
+                    System.out.println("Got the job " + requestId + ": " + gotTheJob);
+                    if (gotTheJob) {
+                        if (type.equals("NewFile")) {
+                            uploadFileWork(requestId, portalStub);
+                        } else {
+                            fakeSomeWork(requestId);
+                        }
                     }
+                } catch (Exception e) {
+                    System.out.println("it caput" + e.getMessage());
                 }
-            } catch (Exception e) {
-                System.out.println("it caput" + e.getMessage());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
             }
         } else if (request.getType() == JGroupRequest.RequestType.RegisterPool){
             RegisterPoolRequest registerPoolRequest = (RegisterPoolRequest) request;
@@ -120,5 +135,9 @@ public class ControllerReceiver extends ReceiverAdapter {
     public void viewAccepted(View view) {
         super.viewAccepted(view);
         System.out.println("New View :: " + view);
+    }
+
+    public void setLock(Lock lock) {
+        this.lock = lock;
     }
 }
