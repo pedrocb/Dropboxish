@@ -115,6 +115,27 @@ public class ReceiverThread extends Thread {
         return filesInfos;
     }
 
+    private void deleteFileWork(String fileId){
+        ArrayList<StateLog> logs = state.getLogs();
+        Iterator it = logs.iterator();
+        ArrayList<StateLog> newLogs = new ArrayList<>();
+        long timestamp = request.getTimestamp();
+        while (it.hasNext()){
+           StateLog log = (StateLog)it.next();
+           ArrayList<String>args = log.getArgs();
+           if(args.get(1).startsWith("FILE-"+fileId)){
+               ArrayList<String>newArgs = (ArrayList<String>)args.clone();
+               newArgs.set(0,"ACTION-DELETE");
+               StateLog newLog = new StateLog(newArgs,timestamp);
+               newLogs.add(newLog);
+           }
+        }
+        it = newLogs.iterator();
+        while (it.hasNext()){
+            logs.add((StateLog)it.next());
+        }
+    }
+
     private byte[] downloadFileWork(String fileId) {
         ArrayList<StateLog> logs = state.getLogs();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
