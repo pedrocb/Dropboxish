@@ -8,8 +8,16 @@ service PortalService {
     rpc handleRequest (RequestInfo) returns (RequestReply);
 }
 
+service DownloadFileService {
+    rpc uploadFile (FileData_) returns (RequestReply);
+}
+
 message RequestReply {
     bool sucess = 1;
+}
+
+message FileData_ {
+    repeated bytes data = 1;
 }
 
 message RequestInfo {

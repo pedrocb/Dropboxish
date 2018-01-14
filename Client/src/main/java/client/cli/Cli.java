@@ -24,7 +24,7 @@ public class Cli {
                 .register(MOXyJsonProvider.class)
                 .register(MultiPartFeature.class);
 
-        String address = "http://localhost:9999";
+        String address = "http://192.168.1.114:9999";
         target = httpClient.target(address);
     }
 

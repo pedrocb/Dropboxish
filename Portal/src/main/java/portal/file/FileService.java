@@ -45,11 +45,12 @@ public class FileService {
         System.out.println("Deleting " + fileName);
         return Response.status(200).build();
     }
+
     @POST
     @Path("download")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    public Response downloadFile(String request) throws FileNotFoundException {
+    public Response downloadFile(String request) throws FileNotFoundException, InterruptedException {
         JsonObject fileObject;
         try {
             JsonReader jsonReader = Json.createReader(new StringReader(request));
@@ -58,8 +59,7 @@ public class FileService {
             return Response.status(402).build();
         }
         String fileName = fileObject.getString("file");
-        ReentrantLock lock = new ReentrantLock();
-        RequestHandlerService service = new RequestHandlerService(null, Thread.currentThread());
+        DownloadFileService service = new DownloadFileService(Thread.currentThread());
         Server server = ServerBuilder.forPort(0).addService(service).build();
         try {
             server.start();
@@ -67,42 +67,53 @@ public class FileService {
             e.printStackTrace();
         }
         sendMessage(new DownloadFileRequest(fileName, "localhost:" + server.getPort()));
-        try {
-            if(lock.tryLock(10, TimeUnit.SECONDS)) {
-                //A controller responded
-
-            } else {
-                server.shutdown();
-                //No controller responded in 10 seconds
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        try {
-            server.awaitTermination();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        File file = new File("filesReceived/" + fileName);
-        if (file.exists()) {
-            BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
-            StreamingOutput streamingOutput = out -> {
-                byte[] fileBytes = new byte[1024];
-                int read;
-                while ((read = in.read(fileBytes)) != -1) {
-                    try {
-                        out.write(fileBytes, 0, read);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    out.flush();
+        boolean waiting = true;
+        byte[] fileData = null;
+        Response response = Response.status(504).build();
+        while (waiting) {
+            synchronized (service) {
+                if (service.getFile() == null) {
+                    System.out.println("Did not have a response");
+                } else {
+                    fileData = service.getFile();
+                    ByteArrayInputStream in = new ByteArrayInputStream(fileData);
+                    StreamingOutput streamingOutput = out -> {
+                        byte[] fileBytes = new byte[1024];
+                        int read;
+                        while ((read = in.read(fileBytes)) != -1) {
+                            try {
+                                out.write(fileBytes, 0, read);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            out.flush();
+                        }
+                        out.close();
+                    };
+                    response = Response.status(200).entity(streamingOutput).build();
+                    waiting = false;
+                    break;
                 }
-                out.close();
-            };
-            return Response.status(200).entity(streamingOutput).build();
-        } else {
-            return Response.status(404).build();
+            }
+            long tBefore = System.currentTimeMillis();
+            synchronized (Thread.currentThread()) {
+                System.out.println("Waiting");
+                Thread.currentThread().wait(1000 * 10);
+                System.out.println("Wait stopped");
+            }
+            long timePassed = (System.currentTimeMillis() - tBefore);
+            System.out.println(timePassed);
+            if (timePassed >= 10000) {
+                System.out.println("Did not get notified so no controller responded");
+                response = Response.status(503).build();
+                waiting = false;
+                //No controller responded in 10 seconds
+            } else {
+                System.out.println("Got notified... Waiting for response");
+                //A controller responded
+            }
         }
+        return response;
     }
 
     @GET

@@ -1,19 +1,17 @@
 package portal.file;
 
-import core.ControllerServiceGrpc;
-import core.PortalServiceGrpc;
-import core.RequestInfo;
-import core.RequestReply;
+import core.*;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
 import javax.ws.rs.core.Response;
-import java.util.concurrent.locks.ReentrantLock;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
-public class DownloadFileService extends PortalServiceGrpc.PortalServiceImplBase {
+public class DownloadFileService extends DownloadFileServiceGrpc.DownloadFileServiceImplBase {
 
-    private Response response = null;
+    private byte[] fileData = null;
     private Thread thread = new Thread();
 
     public DownloadFileService(Thread thread) {
@@ -21,14 +19,26 @@ public class DownloadFileService extends PortalServiceGrpc.PortalServiceImplBase
     }
 
     @Override
-    public void handleRequest(RequestInfo request, StreamObserver<RequestReply> responseObserver) {
-        String address = request.getAddress();
-        int port = request.getPort();
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(address, port).usePlaintext(true).build();
-        ControllerServiceGrpc.ControllerServiceBlockingStub stub = ControllerServiceGrpc.newBlockingStub(channel);
+    public void uploadFile(FileData_ request, StreamObserver<RequestReply> responseObserver) {
+        synchronized (this) {
+            synchronized (thread) {
+                thread.notify();
+            }
+            int nChunks = request.getDataCount();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            for (int i = 0; i < nChunks; i++) {
+                try {
+                    out.write(request.getData(i).toByteArray());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            fileData = out.toByteArray();
+        }
     }
 
-    public Response getResponse() {
-        return response;
+
+    public byte[] getFile() {
+        return fileData;
     }
 }
