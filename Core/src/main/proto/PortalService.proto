@@ -16,8 +16,16 @@ service ListFileService {
     rpc sendFilesInfo(FilesInfo) returns (RequestReply);
 }
 
+service DeleteFileService {
+    rpc sendFileInfo(OperationResult) returns (RequestReply);
+}
+
 message FilesInfo {
     repeated FileInfo files = 1;
+}
+
+message OperationResult {
+    bool success = 1;
 }
 
 message FileInfo {

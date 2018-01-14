@@ -39,7 +39,7 @@ public class ReceiverThread extends Thread {
 
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.114").setPort(port).build();
+                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.110").setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
                 System.out.println("Received reply from portal");
             }catch (Exception e){
@@ -88,7 +88,15 @@ public class ReceiverThread extends Thread {
             ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
             ListFileServiceGrpc.ListFileServiceBlockingStub portalStub = ListFileServiceGrpc.newBlockingStub(portalChannel);
             portalStub.sendFilesInfo(FilesInfo.newBuilder().addAllFiles(getListFiles()).build());
-        } else {
+        } else if (request.getType() == JGroupRequest.RequestType.DeleteFile) {
+            System.out.println("deleting file");
+            DeleteFileRequest deleteFileRequest = (DeleteFileRequest) request;
+            String address = deleteFileRequest.getAddress();
+            ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
+            DeleteFileServiceGrpc.DeleteFileServiceBlockingStub portalStub = DeleteFileServiceGrpc.newBlockingStub(portalChannel);
+            deleteFileWork(deleteFileRequest.getFileName());
+            portalStub.sendFileInfo(OperationResult.newBuilder().setSuccess(true).build());
+        }   else{
             System.out.println("Got something else");
         }
     }
@@ -123,7 +131,7 @@ public class ReceiverThread extends Thread {
         while (it.hasNext()){
            StateLog log = (StateLog)it.next();
            ArrayList<String>args = log.getArgs();
-           if(args.get(1).startsWith("FILE-"+fileId)){
+           if(args.get(1).startsWith("FILEID-"+fileId)){
                ArrayList<String>newArgs = (ArrayList<String>)args.clone();
                newArgs.set(0,"ACTION-DELETE");
                StateLog newLog = new StateLog(newArgs,timestamp);
