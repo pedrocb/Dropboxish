@@ -11,6 +11,7 @@ import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -50,7 +51,6 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
         }
         responseObserver.onCompleted();
     }
-
 
     private int uploadFileWork(byte[] file) {
         synchronized (state) {
@@ -119,6 +119,15 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
             return 1;
         }
 
+    }
+
+    private void downloadFileWork(String fileId) {
+        ArrayList<StateLog> logs = state.getLogs();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Iterator logsIterator = logs.iterator();
+        while (logsIterator.hasNext()){
+            StateLog log = (StateLog)logsIterator.next();
+        }
     }
 
     private byte[][] encondeReedSolomon(byte[] data) {

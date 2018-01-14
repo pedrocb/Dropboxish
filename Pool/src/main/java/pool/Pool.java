@@ -9,11 +9,12 @@ import org.jgroups.Message;
 import java.io.IOException;
 
 import static org.jgroups.Message.Flag.RSVP;
+import static org.jgroups.Message.Flag.RSVP_NB;
 
 public class Pool {
 
     private Server server;
-    private String address = "localhost";
+    private String address = "192.168.1.110";
     public static String dataDirectory = "data";
 
     public Pool() {
@@ -42,7 +43,7 @@ public class Pool {
             channel.connect("ControllerCluster");
             RegisterPoolRequest registerPoolRequest = new RegisterPoolRequest(this.address + ":" + server.getPort());
             Message msg = new Message(null, registerPoolRequest);
-            msg.setFlag(RSVP);
+            msg.setFlag(RSVP_NB);
             channel.send(msg);
             channel.disconnect();
             System.out.println("Register Sent");
