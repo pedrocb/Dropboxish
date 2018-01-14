@@ -10,7 +10,9 @@ public class JGroupRequest implements Serializable {
 
     public enum RequestType {
         UploadFile,
-        RegisterPool
+        RegisterPool,
+        DownloadFile,
+        ListFiles
     }
     public JGroupRequest() {
         this.timestamp = System.currentTimeMillis() / 1000L;

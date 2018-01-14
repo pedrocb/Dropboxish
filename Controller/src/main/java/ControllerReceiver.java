@@ -71,7 +71,7 @@ public class ControllerReceiver extends ReceiverAdapter {
             try {
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().build();
+                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("localhost").setPort(0).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
             } finally {
                 lock.unlock();

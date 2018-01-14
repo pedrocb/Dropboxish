@@ -28,7 +28,7 @@ public class FileService {
     @Path("download")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    public Response downloadFile(String request) throws IOException {
+    public Response downloadFile(String request) throws FileNotFoundException {
         JsonObject fileObject;
         try {
             JsonReader jsonReader = Json.createReader(new StringReader(request));
@@ -37,6 +37,31 @@ public class FileService {
             return Response.status(402).build();
         }
         String fileName = fileObject.getString("file");
+        ReentrantLock lock = new ReentrantLock();
+        RequestHandlerService service = new RequestHandlerService(null, Thread.currentThread());
+        Server server = ServerBuilder.forPort(0).addService(service).build();
+        try {
+            server.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        sendMessage(new DownloadFileRequest(fileName, "localhost:" + server.getPort()));
+        try {
+            if(lock.tryLock(10, TimeUnit.SECONDS)) {
+                //A controller responded
+
+            } else {
+                server.shutdown();
+                //No controller responded in 10 seconds
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        try {
+            server.awaitTermination();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         File file = new File("filesReceived/" + fileName);
         if (file.exists()) {
             BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
@@ -63,6 +88,7 @@ public class FileService {
     @Path("list")
     @Produces(MediaType.APPLICATION_JSON)
     public Response listFiles() {
+        ReentrantLock lock = new ReentrantLock();
         return Response.status(200).build();
     }
 
@@ -91,19 +117,40 @@ public class FileService {
             byte[] data = IoUtils.toByteArray(new FileInputStream(new File("filesReceived/" + fileName)));
             System.out.println("Data length " + data.length);
 
-            ReentrantLock lock = new ReentrantLock();
-            RequestHandlerService service = new RequestHandlerService(data, lock);
+            RequestHandlerService service = new RequestHandlerService(data, Thread.currentThread());
             Server server = ServerBuilder.forPort(0).addService(service).build();
             server.start();
             UploadFileRequest request = new UploadFileRequest(fileName, "localhost:"+server.getPort());
             sendMessage(request);
-            if(lock.tryLock(10, TimeUnit.SECONDS)) {
-                //A controller responded
 
-            } else {
-                server.shutdown();
-                //No controller responded in 10 seconds
+            boolean waiting = true;
+            while (waiting) {
+                System.out.println("Waiting for controller response");
+                long tBefore = System.currentTimeMillis();
+                synchronized (Thread.currentThread()) {
+                    Thread.currentThread().wait(1000 * 10);
+                    System.out.println("Wait stopped");
+                }
+                long timePassed = (System.currentTimeMillis() - tBefore);
+                System.out.println(timePassed);
+                if (timePassed >= 10000) {
+                    System.out.println("Did not get notified so no controller responded");
+                    waiting = false;
+                    //No controller responded in 10 seconds
+                } else {
+                    System.out.println("Got notified... Waiting for response");
+                    //A controller responded
+                    synchronized (service) {
+                        if (service.getResponse() == null) {
+                            System.out.println("Did not have a response");
+                        } else {
+                            System.out.println(service.getResponse());
+                            waiting = false;
+                        }
+                    }
+                }
             }
+
             server.awaitTermination();
 
         } catch (IOException | InterruptedException e) {
@@ -116,18 +163,11 @@ public class FileService {
         try {
             JChannel channel = new JChannel("tcp.xml");
             channel.connect("ControllerCluster");
-            MessageDispatcher messageDispatcher = new MessageDispatcher(channel);
             channel.send(new Message(null, request));
-            //Sometimes the message drops because we disconnect
-            //TODO: make send msg async? not matter if this leaves
-            TimeUnit.SECONDS.sleep(1);
+            TimeUnit.SECONDS.sleep(0);
             channel.disconnect();
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private int generateId() {
-        return (int) Math.floor(Math.random() * Integer.MAX_VALUE);
     }
 }

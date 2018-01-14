@@ -39,6 +39,7 @@ public class Pool {
             channel.connect("ControllerCluster");
             RegisterPoolRequest registerPoolRequest = new RegisterPoolRequest(this.address + ":" + server.getPort());
             channel.send(new Message(null, registerPoolRequest));
+            channel.disconnect();
             System.out.println("Register Sent");
         } catch (Exception e) {
             e.printStackTrace();
