@@ -6,7 +6,7 @@ public class DownloadFileRequest extends JGroupRequest {
 
     public DownloadFileRequest(String fileName, String address) {
         this.address = address;
-        this.type = RequestType.RegisterPool;
+        this.type = RequestType.DownloadFile;
         this.fileName = fileName;
     }
 

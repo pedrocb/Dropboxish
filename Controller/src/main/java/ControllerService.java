@@ -103,15 +103,6 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
                     }
                 }
 
-                //Simule that 2 shards are missing;
-                boolean[] shardPresent = {false, true, true, true, true, false};
-                int shardSize = shards[0].length;
-                for (int j = 0; j < shardPresent.length; j++) {
-                    if (!shardPresent[j]) {
-                        shards[j] = new byte[shardSize];
-                    }
-                }
-                byte[] decodedData = decodeReedSolomon(shards, shardPresent);
                 blockNumber++;
                 from += size;
             }
@@ -121,97 +112,6 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
 
     }
 
-    private byte[] downloadFileWork(String fileId) {
-        ArrayList<StateLog> logs = state.getLogs();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        Iterator logsIterator = logs.iterator();
-        ArrayList<StateLog> fileIdLogs = new ArrayList<>();
-        int numChunks = 0;
-        while (logsIterator.hasNext()){
-            StateLog log = (StateLog)logsIterator.next();
-            ArrayList<String> args = log.getArgs();
-            if(args.get(1).startsWith("FILEID-"+fileId)){
-                fileIdLogs.add(log);
-                String[] tokens = args.get(1).split("|");
-                if(Integer.parseInt(tokens[tokens.length-1]) > numChunks){
-                    numChunks = Integer.parseInt(tokens[tokens.length-1]);
-                }
-            }
-        }
-
-        //Array that for each block, has all the logs of it
-        ArrayList<StateLog>[] blockIdLogs = new ArrayList[numChunks];
-        for(int i = 0; i<numChunks;i++){
-            blockIdLogs[i] = new ArrayList<>();
-        }
-        Iterator fileIdLogsIterator = fileIdLogs.iterator();
-        while (fileIdLogsIterator.hasNext()){
-            StateLog log = (StateLog)fileIdLogsIterator.next();
-            String[] tokens = log.getArgs().get(1).split("|");
-            int blockId = Integer.parseInt(tokens[tokens.length-1]);
-            blockIdLogs[blockId].add(log);
-        }
-
-        byte[][] shards = new byte [6][];
-        boolean[] shardPresent = new boolean[6];
-
-        for(int blockId = 0; blockId<numChunks;blockId++){
-            int shardSize = 0;
-            for(int shardId = 0; shardId<6;shardId++){
-                //get operation with latest timestamp
-                long timestamp = 0;
-                StateLog lastLog = null;
-                Iterator it = blockIdLogs[blockId].iterator();
-                while (it.hasNext()){
-                    StateLog log = (StateLog)it.next();
-                    ArrayList<String> args = log.getArgs();
-                    if(args.get(2).equals("SHARDID-"+shardId) && log.getTimestamp() > timestamp){
-                        timestamp = log.getTimestamp();
-                        lastLog = log;
-                    }
-                }
-                if(lastLog.getArgs().get(0).equals("ACTION-WRITE")){
-                    String address = lastLog.getArgs().get(3).substring(5);
-                    String poolFileId = fileId+"|"+blockId;
-                    try {
-                        ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
-                        PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
-                        BlockID b = BlockID.newBuilder().setFileId(poolFileId).setBlockIndex(shardId).build();
-                        ReadBlockRequest readBlockRequest = ReadBlockRequest.newBuilder().setBlockID(b).build();
-                        BlockData blockData = poolStub.read(readBlockRequest);
-                        shards[shardId] = blockData.toByteArray();
-                        shardPresent[shardId] = true;
-                        shardSize = shards[shardId].length;
-                    } catch (Exception e) {
-                        //pool is down
-                        shardPresent[shardId] = false;
-                    }
-                } else {
-                    System.out.println("This BlockId was DELETED");
-                }
-            }
-
-            int numberOfShardsMissing = 0;
-            for(int i = 0; i<6; i++){
-                if(!shardPresent[i]){
-                    numberOfShardsMissing++;
-                    //If we can't reconstruct the block, fail
-                    if(numberOfShardsMissing > 2){
-                        return null;
-                    }
-                    shards[i] = new byte[shardSize];
-                }
-            }
-
-            byte[] blockIdData = decodeReedSolomon(shards,shardPresent);
-            try {
-                out.write(blockIdData);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        return out.toByteArray();
-    }
 
     private byte[][] encondeReedSolomon(byte[] data) {
         int DATA_SHARDS = 4;
@@ -236,25 +136,4 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
     }
 
 
-    //shards that failed are empty arrays, shardsPresent[i] is true if shard[i] is present
-    private byte[] decodeReedSolomon(byte[][] shards, boolean[] shardPresent) {
-        int DATA_SHARDS = 4;
-        int PARITY_SHARDS = 2;
-        int SHARD_SIZE = shards[0].length;
-
-        //Recover missing shards
-        ReedSolomon reedSolomon = ReedSolomon.create(DATA_SHARDS, PARITY_SHARDS);
-        reedSolomon.decodeMissing(shards, shardPresent, 0, SHARD_SIZE);
-
-        byte[] allBytes = new byte[SHARD_SIZE * DATA_SHARDS];
-        for (int i = 0; i < DATA_SHARDS; i++) {
-            System.arraycopy(shards[i], 0, allBytes, i * SHARD_SIZE, SHARD_SIZE);
-        }
-        int fileSize = ByteBuffer.wrap(allBytes).getInt();
-        byte[] data = new byte[fileSize];
-        System.arraycopy(allBytes, Integer.BYTES, data, 0, fileSize);
-
-        System.out.println("Recovered File: " + Arrays.toString(data));
-        return data;
-    }
 }
