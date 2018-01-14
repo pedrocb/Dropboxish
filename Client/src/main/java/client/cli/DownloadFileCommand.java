@@ -1,5 +1,7 @@
 package client.cli;
 
+import com.sun.tools.doclets.formats.html.SourceToHTMLConverter;
+
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.ws.rs.client.Entity;
@@ -36,7 +38,10 @@ public class DownloadFileCommand implements Command {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            } else {
+            } else if (response.getStatus() == 505){
+                System.out.println("Not able to get file (pools down)");
+            }
+            else {
                 System.out.println("File " + fileName + " not found.");
             }
         }

@@ -66,6 +66,9 @@ public class ReceiverThread extends Thread {
                 DownloadFileServiceGrpc.DownloadFileServiceBlockingStub portalStub = DownloadFileServiceGrpc.newBlockingStub(portalChannel);
                 System.out.println(fileName);
                 byte[] fileData = downloadFileWork(fileName);
+                if(fileData == null){
+                    portalStub.uploadFile(FileData_.newBuilder().build());
+                }
                 FileData_.Builder builder = FileData_.newBuilder();
                 int from = 0;
                 while (from < fileData.length) {
