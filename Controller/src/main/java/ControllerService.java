@@ -85,7 +85,7 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
                                     ArrayList<String> logArgs = new ArrayList<>();
                                     logArgs.add("ACTION-WRITE");
                                     logArgs.add("FILEID-" + fileId);
-                                    logArgs.add("BLOCKID-" + j);
+                                    logArgs.add("SHARDID-" + j);
                                     logArgs.add("POOL-" + chosenPool);
                                     StateLog stateLog = new StateLog(logArgs, timestamp);
                                     state.getLogs().add(stateLog);
@@ -121,13 +121,96 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
 
     }
 
-    private void downloadFileWork(String fileId) {
+    private byte[] downloadFileWork(String fileId) {
         ArrayList<StateLog> logs = state.getLogs();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Iterator logsIterator = logs.iterator();
+        ArrayList<StateLog> fileIdLogs = new ArrayList<>();
+        int numChunks = 0;
         while (logsIterator.hasNext()){
             StateLog log = (StateLog)logsIterator.next();
+            ArrayList<String> args = log.getArgs();
+            if(args.get(1).startsWith("FILEID-"+fileId)){
+                fileIdLogs.add(log);
+                String[] tokens = args.get(1).split("|");
+                if(Integer.parseInt(tokens[tokens.length-1]) > numChunks){
+                    numChunks = Integer.parseInt(tokens[tokens.length-1]);
+                }
+            }
         }
+
+        //Array that for each block, has all the logs of it
+        ArrayList<StateLog>[] blockIdLogs = new ArrayList[numChunks];
+        for(int i = 0; i<numChunks;i++){
+            blockIdLogs[i] = new ArrayList<>();
+        }
+        Iterator fileIdLogsIterator = fileIdLogs.iterator();
+        while (fileIdLogsIterator.hasNext()){
+            StateLog log = (StateLog)fileIdLogsIterator.next();
+            String[] tokens = log.getArgs().get(1).split("|");
+            int blockId = Integer.parseInt(tokens[tokens.length-1]);
+            blockIdLogs[blockId].add(log);
+        }
+
+        byte[][] shards = new byte [6][];
+        boolean[] shardPresent = new boolean[6];
+
+        for(int blockId = 0; blockId<numChunks;blockId++){
+            int shardSize = 0;
+            for(int shardId = 0; shardId<6;shardId++){
+                //get operation with latest timestamp
+                long timestamp = 0;
+                StateLog lastLog = null;
+                Iterator it = blockIdLogs[blockId].iterator();
+                while (it.hasNext()){
+                    StateLog log = (StateLog)it.next();
+                    ArrayList<String> args = log.getArgs();
+                    if(args.get(2).equals("SHARDID-"+shardId) && log.getTimestamp() > timestamp){
+                        timestamp = log.getTimestamp();
+                        lastLog = log;
+                    }
+                }
+                if(lastLog.getArgs().get(0).equals("ACTION-WRITE")){
+                    String address = lastLog.getArgs().get(3).substring(5);
+                    String poolFileId = fileId+"|"+blockId;
+                    try {
+                        ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
+                        PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
+                        BlockID b = BlockID.newBuilder().setFileId(poolFileId).setBlockIndex(shardId).build();
+                        ReadBlockRequest readBlockRequest = ReadBlockRequest.newBuilder().setBlockID(b).build();
+                        BlockData blockData = poolStub.read(readBlockRequest);
+                        shards[shardId] = blockData.toByteArray();
+                        shardPresent[shardId] = true;
+                        shardSize = shards[shardId].length;
+                    } catch (Exception e) {
+                        //pool is down
+                        shardPresent[shardId] = false;
+                    }
+                } else {
+                    System.out.println("This BlockId was DELETED");
+                }
+            }
+
+            int numberOfShardsMissing = 0;
+            for(int i = 0; i<6; i++){
+                if(!shardPresent[i]){
+                    numberOfShardsMissing++;
+                    //If we can't reconstruct the block, fail
+                    if(numberOfShardsMissing > 2){
+                        return null;
+                    }
+                    shards[i] = new byte[shardSize];
+                }
+            }
+
+            byte[] blockIdData = decodeReedSolomon(shards,shardPresent);
+            try {
+                out.write(blockIdData);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return out.toByteArray();
     }
 
     private byte[][] encondeReedSolomon(byte[] data) {
