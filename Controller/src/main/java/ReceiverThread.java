@@ -105,6 +105,7 @@ public class ReceiverThread extends Thread {
                 }
             }
         }
+        numChunks++;
 
         //Array that for each block, has all the logs of it
         ArrayList<StateLog>[] blockIdLogs = new ArrayList[numChunks];
@@ -146,7 +147,7 @@ public class ReceiverThread extends Thread {
                         BlockID b = BlockID.newBuilder().setFileId(poolFileId).setBlockIndex(shardId).build();
                         ReadBlockRequest readBlockRequest = ReadBlockRequest.newBuilder().setBlockID(b).build();
                         BlockData blockData = poolStub.read(readBlockRequest);
-                        shards[shardId] = blockData.toByteArray();
+                        shards[shardId] = blockData.getData().toByteArray();
                         shardPresent[shardId] = true;
                         shardSize = shards[shardId].length;
                     } catch (Exception e) {

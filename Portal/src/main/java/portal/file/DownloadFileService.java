@@ -35,6 +35,8 @@ public class DownloadFileService extends DownloadFileServiceGrpc.DownloadFileSer
             }
             fileData = out.toByteArray();
         }
+        responseObserver.onNext(RequestReply.newBuilder().build());
+        responseObserver.onCompleted();
     }
 
 
