@@ -32,6 +32,11 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
         byte[] data = out.toByteArray();
         System.out.println("File uploaded");
         responseObserver.onNext(StatusMessage.newBuilder().setStatus(StatusMessage.Status.OK).build());
+        try {
+            TimeUnit.SECONDS.sleep(10);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         responseObserver.onCompleted();
     }
 

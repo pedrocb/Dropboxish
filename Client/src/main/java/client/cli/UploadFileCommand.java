@@ -30,6 +30,7 @@ public class UploadFileCommand implements Command {
                 fileInStream = new FileInputStream(file);
             } catch (FileNotFoundException e) {
                 System.out.println("File " + file + " doesn't exist");
+                continue;
             }
             String contentDisposition = "attachment; filename=\"" + file.getName() + "\"";
             Response response = target.path(endpoint).path(file.getName())

@@ -7,12 +7,15 @@ import io.grpc.internal.IoUtils;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.blocks.MessageDispatcher;
+import org.jgroups.blocks.RequestOptions;
+import org.jgroups.blocks.ResponseMode;
 
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
@@ -21,6 +24,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static org.jgroups.Message.Flag.RSVP;
 
 @Path("file")
 public class FileService {
@@ -162,9 +167,14 @@ public class FileService {
     private void sendMessage(JGroupRequest request) {
         try {
             JChannel channel = new JChannel("tcp.xml");
+            channel.setDiscardOwnMessages(true);
             channel.connect("ControllerCluster");
-            channel.send(new Message(null, request));
-            TimeUnit.SECONDS.sleep(1);
+            Message msg = new Message(null, request);
+            msg.setFlag(RSVP);
+            System.out.println("Sending message");
+            System.out.println(channel.getViewAsString());
+            channel.send(msg);
+            System.out.println("Disconnecting");
             channel.disconnect();
         } catch (Exception e) {
             e.printStackTrace();

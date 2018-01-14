@@ -8,6 +8,8 @@ import org.jgroups.Message;
 
 import java.io.IOException;
 
+import static org.jgroups.Message.Flag.RSVP;
+
 public class Pool {
 
     private Server server;
@@ -36,9 +38,12 @@ public class Pool {
         JChannel channel = null;
         try {
             channel = new JChannel("tcp.xml");
+            channel.setDiscardOwnMessages(true);
             channel.connect("ControllerCluster");
             RegisterPoolRequest registerPoolRequest = new RegisterPoolRequest(this.address + ":" + server.getPort());
-            channel.send(new Message(null, registerPoolRequest));
+            Message msg = new Message(null, registerPoolRequest);
+            msg.setFlag(RSVP);
+            channel.send(msg);
             channel.disconnect();
             System.out.println("Register Sent");
         } catch (Exception e) {

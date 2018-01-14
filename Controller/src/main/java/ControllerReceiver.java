@@ -62,36 +62,9 @@ public class ControllerReceiver extends ReceiverAdapter {
 
     //when a new request is received
     public void receive(Message msg) {
-        JGroupRequest request = msg.getObject();
         System.out.println("got msg ");
-        if(request.getType() == JGroupRequest.RequestType.UploadFile) {
-            System.out.println("Got a upload file request from " + msg.getSrc());
-            lock.lock();
-            System.out.println("Got the lock");
-            String address = request.getAddress();
-            try {
-                ControllerWorker controllerWorker = new ControllerWorker();
-                controllerWorker.start();
-                int port = controllerWorker.getPort();
-                ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
-                PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("localhost").setPort(port).build();
-                RequestReply requestReply = portalStub.handleRequest(requestInfo);
-            }catch (Exception e){
-                System.out.println("it caput");
-                e.printStackTrace();
-            } finally {
-                lock.unlock();
-            }
-        } else if (request.getType() == JGroupRequest.RequestType.RegisterPool){
-            RegisterPoolRequest registerPoolRequest = (RegisterPoolRequest) request;
-            System.out.println("Registering pool " + registerPoolRequest.getAddress());
-            synchronized (state) {
-                state.addPool(registerPoolRequest.getAddress());
-            }
-        } else {
-            System.out.println("Got something else");
-        }
+        JGroupRequest request = msg.getObject();
+        new ReceiverThread(request, lock, state).start();
     }
 
 
