@@ -37,6 +37,13 @@ public class UploadFileCommand implements Command {
                     .request(MediaType.APPLICATION_OCTET_STREAM_TYPE)
                     .header("Content-Disposition", contentDisposition)
                     .post(Entity.entity(fileInStream, MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            if(response.getStatus() == 200) {
+                System.out.println("Uploaded successfully.");
+            } else if(response.getStatus() == 503) {
+                System.out.println("No controllers online.");
+            } else {
+                System.out.println("No pools online");
+            }
             System.out.println(response.getStatus());
         }
 

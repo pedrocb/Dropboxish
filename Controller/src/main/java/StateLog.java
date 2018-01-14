@@ -1,7 +1,7 @@
 import java.io.Serializable;
 import java.util.ArrayList;
 
-public class StateLog implements Serializable{
+public class StateLog implements Serializable {
     public enum Type {
         Write,
     }

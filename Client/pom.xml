@@ -72,5 +72,9 @@
             <groupId>org.glassfish.jersey.inject</groupId>
             <artifactId>jersey-hk2</artifactId>
         </dependency>
+        <dependency>
+            <groupId>dropboxish</groupId>
+            <artifactId>core</artifactId>
+        </dependency>
     </dependencies>
 </project>

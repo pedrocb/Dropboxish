@@ -27,6 +27,7 @@
     <FD timeout="3000" max_tries="3" />
     <VERIFY_SUSPECT timeout="1500"  />
     <BARRIER />
+    <RSVP resend_interval="0" ack_on_delivery="true" timeout="0"/>
     <pbcast.NAKACK2 use_mcast_xmit="false"
                     discard_delivered_msgs="true"/>
     <UNICAST3 />
@@ -36,7 +37,6 @@
     <MFC max_credits="2M"
          min_threshold="0.4"/>
     <FRAG2 frag_size="60K"  />
-    <!--RSVP resend_interval="2000" timeout="10000"/-->
     <pbcast.STATE_TRANSFER/>
     <CENTRAL_LOCK/>
 </config>

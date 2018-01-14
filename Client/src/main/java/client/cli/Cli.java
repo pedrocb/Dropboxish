@@ -47,8 +47,18 @@ public class Cli {
                 String[] filenames = input.replace("download ", "").split(" ");
                 command = new DownloadFileCommand(filenames);
                 command.run(target);
+            } else if (input.equals("list files")) {
+                command = new ListFilesCommand();
+                command.run(target);
+            } else if (input.startsWith("search ")) {
+                String regex = input.replace("search ", "");
+                command = new SearchFileCommand(regex);
+                command.run(target);
+            } else if(input.startsWith("delete ")) {
+                String[] filenames = input.replace("delete ", "").split(" ");
+                command = new DeleteFileCommand(filenames);
+                command.run(target);
             }
-
         }
     }
 }

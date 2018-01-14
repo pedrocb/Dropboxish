@@ -47,7 +47,7 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
         if (uploadFileWork(data) == 1) {
             responseObserver.onNext(StatusMessage.newBuilder().setStatus(StatusMessage.Status.OK).build());
         } else {
-            responseObserver.onError(new Exception("upload file failed"));
+            responseObserver.onNext(StatusMessage.newBuilder().setStatus(StatusMessage.Status.NOT_OK).build());
         }
         responseObserver.onCompleted();
     }

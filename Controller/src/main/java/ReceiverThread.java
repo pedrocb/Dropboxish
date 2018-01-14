@@ -33,7 +33,7 @@ public class ReceiverThread extends Thread {
 
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.110").setPort(port).build();
+                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.114").setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
                 System.out.println("Received reply from portal");
             }catch (Exception e){
