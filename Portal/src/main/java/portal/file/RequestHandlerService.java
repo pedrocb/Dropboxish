@@ -20,6 +20,7 @@ public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBa
 
     public RequestHandlerService(byte[] fileData, Thread thread) {
         this.fileData = fileData;
+        System.out.println(fileData.length);
         this.response = javax.ws.rs.core.Response.status(500).build();
         this.thread = thread;
         this.response = null;
@@ -38,8 +39,24 @@ public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBa
             try {
                 System.out.println("Sending message to " + address + ":" + port);
                 ManagedChannel channel = ManagedChannelBuilder.forTarget(address + ":" + port).usePlaintext(true).build();
-                //ControllerServiceGrpc.ControllerServiceBlockingStub controllerStub = ControllerServiceGrpc.newBlockingStub(channel);
-                ControllerServiceGrpc.ControllerServiceStub controllerStub = ControllerServiceGrpc.newStub(channel);
+                ControllerServiceGrpc.ControllerServiceBlockingStub controllerStub = ControllerServiceGrpc.newBlockingStub(channel);
+
+                FileData.Builder builder = FileData.newBuilder();
+                int from = 0;
+                while (from < fileData.length) {
+                    int size = 1024;
+                    if (from + size > fileData.length) {
+                        size = fileData.length - from;
+                    }
+                    ByteString chunk = ByteString.copyFrom(fileData, from, size);
+                    builder.addData(chunk);
+                    System.out.println("Sent chunk " + Arrays.toString(chunk.toByteArray()));
+                    from = from + 1024;
+                }
+                controllerStub.uploadFile(builder.build());
+                response = Response.status(200).build();
+
+                /*ControllerServiceGrpc.ControllerServiceStub controllerStub = ControllerServiceGrpc.newStub(channel);
                 StreamObserver<StatusMessage> statusResponseObserver = new StreamObserver<StatusMessage>() {
                     @Override
                     public void onNext(StatusMessage status) {
@@ -79,13 +96,18 @@ public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBa
                         e.printStackTrace();
                         statusRequestObserver.onError(e);
                     }
-                }
-                statusRequestObserver.onCompleted();
+                } */
                 System.out.println("Message Over");
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            try {
+                TimeUnit.SECONDS.sleep(2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+        System.out.println("left handle request");
 
     }
 

@@ -134,9 +134,9 @@ public class FileService {
                         break;
                     }
                 }
-                System.out.println("Waiting for controller response");
                 long tBefore = System.currentTimeMillis();
                 synchronized (Thread.currentThread()) {
+                    System.out.println("Waiting");
                     Thread.currentThread().wait(1000 * 10);
                     System.out.println("Wait stopped");
                 }

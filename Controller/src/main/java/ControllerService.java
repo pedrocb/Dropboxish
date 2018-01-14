@@ -19,6 +19,24 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
     }
 
     @Override
+    public void uploadFile(FileData request, StreamObserver<StatusMessage> responseObserver) {
+        int nChunks = request.getDataCount();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for (int i = 0; i < nChunks; i++) {
+            try {
+                out.write(request.getData(i).toByteArray());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        byte[] data = out.toByteArray();
+        System.out.println("File uploaded");
+        responseObserver.onNext(StatusMessage.newBuilder().setStatus(StatusMessage.Status.OK).build());
+        responseObserver.onCompleted();
+    }
+
+    /*
+    @Override
     public StreamObserver<FileData> uploadFile (final StreamObserver<StatusMessage> responseObserver){
         return new StreamObserver<FileData>() {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -39,9 +57,9 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
 
             @Override
             public void onCompleted() {
-                System.out.println("Waiting 10 seconds");
+                System.out.println("Waiting 5 seconds");
                 try {
-                    TimeUnit.SECONDS.sleep(10);
+                    TimeUnit.SECONDS.sleep(5);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -52,6 +70,7 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
             }
         };
     }
+    */
 
     private void uploadFileWork(String requestId, PortalServiceGrpc.PortalServiceBlockingStub stub){
         /*RequestInfo request = RequestInfo.newBuilder().build();

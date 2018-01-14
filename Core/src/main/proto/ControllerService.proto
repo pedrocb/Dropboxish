@@ -22,7 +22,7 @@ message Endpoint {
 }
 
 message FileData {
-    bytes data = 1;
+    repeated bytes data = 1;
 }
 
 message StatusMessage {
