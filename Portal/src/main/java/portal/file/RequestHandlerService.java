@@ -6,6 +6,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
+import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBase {
@@ -25,11 +26,64 @@ public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBa
 
     @Override
     public void handleRequest(RequestInfo request, StreamObserver<RequestReply> responseObserver) {
-        lock.unlock();
+        try{
+            //lock.unlock();
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        System.out.println("Received message from controller");
         String address = request.getAddress();
         int port = request.getPort();
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(address,port).usePlaintext(true).build();
-        ControllerServiceGrpc.ControllerServiceBlockingStub controllerStub = ControllerServiceGrpc.newBlockingStub(channel);
+        try {
+            System.out.println("Sending message to "+address+":"+port);
+            ManagedChannel channel = ManagedChannelBuilder.forTarget(address+":"+port).usePlaintext(true).build();
+            //ControllerServiceGrpc.ControllerServiceBlockingStub controllerStub = ControllerServiceGrpc.newBlockingStub(channel);
+            ControllerServiceGrpc.ControllerServiceStub controllerStub = ControllerServiceGrpc.newStub(channel);
+            StreamObserver<StatusMessage> statusResponseObserver = new StreamObserver<StatusMessage>() {
+                @Override
+                public void onNext(StatusMessage status) {
+                    System.out.println("portal on next");
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    System.out.println("portal on error");
+                    responseObserver.onError(new Throwable());
+                }
+
+                @Override
+                public void onCompleted() {
+                    System.out.println("portal on complete");
+                    responseObserver.onNext(RequestReply.newBuilder().setSucess(true).build());
+                }
+            };
+            StreamObserver<FileData> statusRequestObserver = controllerStub.uploadFile(statusResponseObserver);
+            int from = 0;
+            while (from < fileData.length) {
+                try {
+                    int size = 1024;
+                    if(from + size > fileData.length){
+                        size = fileData.length-from;
+                    }
+                    ByteString chunk = ByteString.copyFrom(fileData, from, size);
+                    FileData fileData = FileData.newBuilder().setData(chunk).build();
+                    statusRequestObserver.onNext(fileData);
+                    System.out.println("Sent chunk "+ Arrays.toString(chunk.toByteArray()));
+                    from = from + 1024;
+                } catch (Exception e) {
+                    System.out.println("Calling on error statusRequestObserver");
+                    e.printStackTrace();
+                    statusRequestObserver.onError(e);
+                }
+            }
+            statusRequestObserver.onCompleted();
+            System.out.println("Message Over");
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
         responseObserver.onCompleted();
     }
 }

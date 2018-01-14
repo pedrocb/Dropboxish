@@ -6,14 +6,14 @@ import core.RequestInfo;
 import core.RequestReply;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import org.jgroups.util.Util;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -67,12 +67,19 @@ public class ControllerReceiver extends ReceiverAdapter {
         if(request.getType() == JGroupRequest.RequestType.UploadFile) {
             System.out.println("Got a upload file request from " + msg.getSrc());
             lock.lock();
+            System.out.println("Got the lock");
             String address = request.getAddress();
             try {
+                ControllerWorker controllerWorker = new ControllerWorker();
+                controllerWorker.start();
+                int port = controllerWorker.getPort();
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().build();
+                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("localhost").setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
+            }catch (Exception e){
+                System.out.println("it caput");
+                e.printStackTrace();
             } finally {
                 lock.unlock();
             }
@@ -87,91 +94,7 @@ public class ControllerReceiver extends ReceiverAdapter {
         }
     }
 
-    private void uploadFileWork(String requestId, PortalServiceGrpc.PortalServiceBlockingStub stub){
-        /*RequestInfo request = RequestInfo.newBuilder().build();
-        Iterator<FileData> fileDataIterator;
 
-        try {
-            fileDataIterator = stub.uploadFileRequest(request);
-            for(int i = 1; fileDataIterator.hasNext(); i++){
-                FileData fileData = fileDataIterator.next();
-                System.out.println("Recieved piece #"+i+" lenght "+fileData.getData().toByteArray().length);
-                byte [] data = fileData.getData().toByteArray();
-                byte[][] shards = encondeReedSolomon(data);
-
-                for(int j=0; j<shards.length; j++){
-                    try{
-                        ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(state.getPools().get(0)).usePlaintext(true).build();
-                        PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);
-                        BlockID blockID = BlockID.newBuilder().setFileId(UUID.randomUUID().toString()).setBlockIndex(j).build();
-                        BlockData blockData = BlockData.newBuilder().setData(ByteString.copyFrom(shards[j])).build();
-                        WriteBlockRequest writeBlockRequest = WriteBlockRequest.newBuilder().setBlockID(blockID).setData(blockData).build();
-                        StatusMsg statusMsg = poolStub.write(writeBlockRequest);
-                        System.out.println(statusMsg.getStatusValue());
-                    } catch (Exception e){
-                        e.printStackTrace();
-                    }
-                }
-                //Simule that 2 shards are missing;
-                boolean [] shardPresent = {false, true, true, true, true, false};
-                int shardSize = shards[0].length;
-                for(int j = 0; j < shardPresent.length; j++){
-                    if(!shardPresent[j]){
-                        shards[j] = new byte[shardSize];
-                    }
-                }
-                byte [] decodedData = decodeReedSolomon(shards,shardPresent);
-            }
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-
-    private byte[][] encondeReedSolomon (byte[] data) {
-        int DATA_SHARDS = 4;
-        int PARITY_SHARDS = 2;
-        int TOTAL_SHARDS = DATA_SHARDS + PARITY_SHARDS;
-        int fileSize = data.length;
-        int storedSize = fileSize + Integer.BYTES;
-        int shardSize = (storedSize + DATA_SHARDS - 1)/DATA_SHARDS;
-        System.out.println("Original data: "+Arrays.toString(data));
-
-        byte [] allBytes = new byte[shardSize * DATA_SHARDS];
-        ByteBuffer.wrap(allBytes).putInt(fileSize).put(data);
-        byte [][] shards = new byte[TOTAL_SHARDS][shardSize];
-        for(int i = 0; i < DATA_SHARDS; i++){
-            System.arraycopy(allBytes, i*shardSize, shards[i],0,shardSize);
-        }
-
-        //Create additional shards
-        ReedSolomon reedSolomon = ReedSolomon.create(DATA_SHARDS, PARITY_SHARDS);
-        reedSolomon.encodeParity(shards,0,shardSize);
-        return shards;
-    }
-
-
-    //shards that failed are empty arrays, shardsPresent[i] is true if shard[i] is present
-    private byte[] decodeReedSolomon (byte [][] shards, boolean [] shardPresent) {
-        int DATA_SHARDS = 4;
-        int PARITY_SHARDS = 2;
-        int SHARD_SIZE = shards[0].length;
-
-        //Recover missing shards
-        ReedSolomon reedSolomon = ReedSolomon.create(DATA_SHARDS, PARITY_SHARDS);
-        reedSolomon.decodeMissing(shards,shardPresent, 0, SHARD_SIZE);
-
-        byte[] allBytes = new byte[SHARD_SIZE*DATA_SHARDS];
-        for(int i = 0; i < DATA_SHARDS; i++){
-            System.arraycopy(shards[i],0,allBytes,i*SHARD_SIZE,SHARD_SIZE);
-        }
-        int fileSize = ByteBuffer.wrap(allBytes).getInt();
-        byte [] data = new byte[fileSize];
-        System.arraycopy(allBytes,Integer.BYTES,data, 0, fileSize);
-
-        System.out.println("Recovered File: "+Arrays.toString(data));
-        return data;
-        */
-    }
 
     private void fakeSomeWork(int requestId) {
         for (int i = 0; i < 10; i++) {

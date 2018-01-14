@@ -6,6 +6,7 @@ package core;
 
 service ControllerService {
     rpc registerPool(PoolInfo) returns (Empty);
+    rpc uploadFile(stream FileData) returns (StatusMessage);
 }
 
 message Empty {
@@ -20,3 +21,14 @@ message Endpoint {
     int32 port = 2;
 }
 
+message FileData {
+    bytes data = 1;
+}
+
+message StatusMessage {
+    enum Status {
+        OK = 0;
+        NOT_OK = 1;
+    }
+    Status status = 1;
+}
