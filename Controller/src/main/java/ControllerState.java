@@ -19,7 +19,7 @@ public class ControllerState implements Serializable {
 
     @Override
     public String toString() {
-        return "Pools: " + storagePools;
+        return "Pools: " + storagePools+"\n"+"Logs: "+logs;
     }
 
     public ArrayList<String> getPools() {

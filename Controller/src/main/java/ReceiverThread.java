@@ -19,13 +19,16 @@ public class ReceiverThread extends Thread {
     @Override
     public void run() {
         if(request.getType() == JGroupRequest.RequestType.UploadFile) {
+            UploadFileRequest uploadFileRequest = (UploadFileRequest)request;
             lock.lock();
-            System.out.println("Got the lock");
-            String address = request.getAddress();
+            String address = uploadFileRequest.getAddress();
+            String fileName = uploadFileRequest.getFileName();
+            long timestamp = uploadFileRequest.getTimestamp();
             try {
-                ControllerWorker controllerWorker = new ControllerWorker();
+                ControllerWorker controllerWorker = new ControllerWorker(state, fileName, timestamp);
                 controllerWorker.start();
                 int port = controllerWorker.getPort();
+
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
                 RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("localhost").setPort(port).build();

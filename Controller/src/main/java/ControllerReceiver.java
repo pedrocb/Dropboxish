@@ -15,6 +15,7 @@ import org.jgroups.util.Util;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.sql.Time;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.UUID;
@@ -67,18 +68,6 @@ public class ControllerReceiver extends ReceiverAdapter {
         new ReceiverThread(request, lock, state).start();
     }
 
-
-
-    private void fakeSomeWork(int requestId) {
-        for (int i = 0; i < 10; i++) {
-            System.out.println("Im working on " + requestId);
-            try {
-                TimeUnit.SECONDS.sleep(1);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
     //when a new controller is added or removed!!
     public void viewAccepted(View view) {

@@ -33,4 +33,12 @@ public class JGroupRequest implements Serializable {
     public void setAddress(String address) {
         this.address = address;
     }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
 }

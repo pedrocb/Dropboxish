@@ -5,6 +5,7 @@ import core.*;
 import io.grpc.stub.StreamObserver;
 
 import java.io.*;
+import java.util.Arrays;
 
 public class PoolService extends PoolServiceGrpc.PoolServiceImplBase {
     public PoolService() {
@@ -16,8 +17,9 @@ public class PoolService extends PoolServiceGrpc.PoolServiceImplBase {
         BlockData data = request.getData();
         String fileId = request.getBlockID().getFileId();
         int blockIndex = request.getBlockID().getBlockIndex();
-        System.out.println("Writing data: " + data.getData() + " on fileID = " + fileId + " block = " + blockIndex);
+        System.out.println("Writing data: " + Arrays.toString(data.getData().toByteArray()) + " on fileID = " + fileId + " block = " + blockIndex);
         String fileDir = Pool.dataDirectory + "/" + fileId;
+        System.out.println("File dir "+fileDir);
         new File(fileDir).mkdirs();
         FileOutputStream fos = null;
         File dataBlockFile = new File(fileDir + "/" + blockIndex);
@@ -32,7 +34,6 @@ public class PoolService extends PoolServiceGrpc.PoolServiceImplBase {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("wrote file");
         responseObserver.onNext(StatusMsg.newBuilder().setStatusValue(0).build());
         responseObserver.onCompleted();
     }
