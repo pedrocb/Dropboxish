@@ -21,6 +21,7 @@ public class ReceiverThread extends Thread {
         if(request.getType() == JGroupRequest.RequestType.UploadFile) {
             UploadFileRequest uploadFileRequest = (UploadFileRequest)request;
             lock.lock();
+            System.out.println("Got lock");
             String address = uploadFileRequest.getAddress();
             String fileName = uploadFileRequest.getFileName();
             long timestamp = uploadFileRequest.getTimestamp();
@@ -31,7 +32,7 @@ public class ReceiverThread extends Thread {
 
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("localhost").setPort(port).build();
+                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.114").setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
             }catch (Exception e){
                 System.out.println("it caput");

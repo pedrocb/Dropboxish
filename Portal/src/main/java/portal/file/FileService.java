@@ -26,6 +26,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.jgroups.Message.Flag.RSVP;
+import static org.jgroups.Message.Flag.RSVP_NB;
 
 @Path("file")
 public class FileService {
@@ -126,7 +127,7 @@ public class FileService {
             RequestHandlerService service = new RequestHandlerService(data, Thread.currentThread());
             Server server = ServerBuilder.forPort(0).addService(service).build();
             server.start();
-            UploadFileRequest request = new UploadFileRequest(fileName, "localhost:"+server.getPort());
+            UploadFileRequest request = new UploadFileRequest(fileName, "192.168.1.114:"+server.getPort());
             sendMessage(request);
             boolean waiting = true;
             while (waiting) {
@@ -170,9 +171,12 @@ public class FileService {
             channel.setDiscardOwnMessages(true);
             channel.connect("ControllerCluster");
             Message msg = new Message(null, request);
-            msg.setFlag(RSVP);
+            msg.setFlag(RSVP_NB);
+            /*
             System.out.println("Sending message");
             System.out.println(channel.getViewAsString());
+            System.out.println(channel.getDiscardOwnMessages());
+            */
             channel.send(msg);
             System.out.println("Disconnecting");
             channel.disconnect();

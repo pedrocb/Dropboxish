@@ -9,6 +9,7 @@ import org.jgroups.Message;
 import java.io.IOException;
 
 import static org.jgroups.Message.Flag.RSVP;
+import static org.jgroups.Message.Flag.RSVP_NB;
 
 public class Pool {
 
@@ -42,7 +43,7 @@ public class Pool {
             channel.connect("ControllerCluster");
             RegisterPoolRequest registerPoolRequest = new RegisterPoolRequest(this.address + ":" + server.getPort());
             Message msg = new Message(null, registerPoolRequest);
-            msg.setFlag(RSVP);
+            msg.setFlag(RSVP_NB);
             channel.send(msg);
             channel.disconnect();
             System.out.println("Register Sent");
