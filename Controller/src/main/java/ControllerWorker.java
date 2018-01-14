@@ -11,8 +11,8 @@ public class ControllerWorker extends Thread{
 
     private int port;
 
-    public ControllerWorker(){
-        server = ServerBuilder.forPort(0).addService(new ControllerService()).build();
+    public ControllerWorker(ControllerState state, String fileName, long timestamp){
+        server = ServerBuilder.forPort(0).addService(new ControllerService(state, fileName, timestamp)).build();
         try {
             server.start();
         } catch (IOException e) {

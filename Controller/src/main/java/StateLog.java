@@ -13,4 +13,9 @@ public class StateLog {
         this.args = args;
         executed = false;
     }
+
+    @Override
+    public String toString(){
+       return args+"TIMESTAMP: "+timestamp+"\n";
+    }
 }

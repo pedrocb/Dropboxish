@@ -33,7 +33,6 @@ public class Controller {
     private final String CLUSTER_NAME = "ControllerCluster";
     private JChannel channel;
     private ControllerReceiver receiver;
-    private Server server;
     private ControllerState state;
 
 
@@ -52,8 +51,6 @@ public class Controller {
         LockService lockService = new LockService(channel);
         Lock lock = lockService.getLock("WorkerLock");
         receiver.setLock(lock);
-
-        server = ServerBuilder.forPort(0).addService(new ControllerService()).build();
 
         System.out.println(receiver.state);
         while(true){

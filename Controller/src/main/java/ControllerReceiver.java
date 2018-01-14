@@ -15,6 +15,7 @@ import org.jgroups.util.Util;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.sql.Time;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.UUID;
@@ -63,16 +64,18 @@ public class ControllerReceiver extends ReceiverAdapter {
     //when a new request is received
     public void receive(Message msg) {
         JGroupRequest request = msg.getObject();
-        System.out.println("got msg ");
         if(request.getType() == JGroupRequest.RequestType.UploadFile) {
+            UploadFileRequest uploadFileRequest = (UploadFileRequest)request;
             System.out.println("Got a upload file request from " + msg.getSrc());
             lock.lock();
-            System.out.println("Got the lock");
-            String address = request.getAddress();
+            String address = uploadFileRequest.getAddress();
+            String fileName = uploadFileRequest.getFileName();
+            long timestamp = uploadFileRequest.getTimestamp();
             try {
-                ControllerWorker controllerWorker = new ControllerWorker();
+                ControllerWorker controllerWorker = new ControllerWorker(state, fileName, timestamp);
                 controllerWorker.start();
                 int port = controllerWorker.getPort();
+
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
                 RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("localhost").setPort(port).build();
@@ -94,18 +97,6 @@ public class ControllerReceiver extends ReceiverAdapter {
         }
     }
 
-
-
-    private void fakeSomeWork(int requestId) {
-        for (int i = 0; i < 10; i++) {
-            System.out.println("Im working on " + requestId);
-            try {
-                TimeUnit.SECONDS.sleep(1);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
     //when a new controller is added or removed!!
     public void viewAccepted(View view) {
