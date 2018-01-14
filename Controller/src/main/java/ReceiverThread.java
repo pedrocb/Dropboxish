@@ -3,6 +3,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 import java.rmi.registry.LocateRegistry;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
 public class ReceiverThread extends Thread {
@@ -21,7 +22,7 @@ public class ReceiverThread extends Thread {
         if(request.getType() == JGroupRequest.RequestType.UploadFile) {
             UploadFileRequest uploadFileRequest = (UploadFileRequest)request;
             lock.lock();
-            System.out.println("Got lock");
+            System.out.println("got lock on Receiver Thread");
             String address = uploadFileRequest.getAddress();
             String fileName = uploadFileRequest.getFileName();
             long timestamp = uploadFileRequest.getTimestamp();
@@ -34,11 +35,13 @@ public class ReceiverThread extends Thread {
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
                 RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.114").setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
+                System.out.println("Received reply from portal");
             }catch (Exception e){
                 System.out.println("it caput");
                 e.printStackTrace();
             } finally {
                 lock.unlock();
+                System.out.println("unlocked Receiver Thread");
             }
         } else if (request.getType() == JGroupRequest.RequestType.RegisterPool){
             RegisterPoolRequest registerPoolRequest = (RegisterPoolRequest) request;

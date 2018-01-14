@@ -66,6 +66,7 @@ public class ControllerReceiver extends ReceiverAdapter {
         System.out.println("got msg ");
         JGroupRequest request = msg.getObject();
         new ReceiverThread(request, lock, state).start();
+        System.out.println("Leaving receive");
     }
 
 

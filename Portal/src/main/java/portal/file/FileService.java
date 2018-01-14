@@ -1,5 +1,6 @@
 package portal.file;
 
+import com.google.common.collect.Lists;
 import core.*;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -14,12 +15,10 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Request;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.*;
 import java.io.*;
 import java.sql.Time;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -30,6 +29,22 @@ import static org.jgroups.Message.Flag.RSVP_NB;
 
 @Path("file")
 public class FileService {
+    @POST
+    @Path("delete")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deleteFile(String request) throws FileNotFoundException {
+        JsonObject fileObject;
+        try {
+            JsonReader jsonReader = Json.createReader(new StringReader(request));
+            fileObject = jsonReader.readObject();
+        } catch (Exception e) {
+            return Response.status(402).build();
+        }
+        String fileName = fileObject.getString("file");
+        System.out.println("Deleting " + fileName);
+        return Response.status(200).build();
+    }
     @POST
     @Path("download")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -94,15 +109,32 @@ public class FileService {
     @Path("list")
     @Produces(MediaType.APPLICATION_JSON)
     public Response listFiles() {
-        ReentrantLock lock = new ReentrantLock();
-        return Response.status(200).build();
+        System.out.println("Listing files");
+        ArrayList<FileBean> fileNames = new ArrayList<>();
+        fileNames.add(new FileBean("file1", 10000));
+        fileNames.add(new FileBean("file2", 20000));
+        fileNames.add(new FileBean("file3", 20000));
+        ArrayList<FileBean> result = fileNames;
+        GenericEntity<ArrayList<FileBean>> entity
+                = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {};
+
+        return Response.status(200).entity(entity).build();
     }
 
     @GET
     @Path("search")
     @Produces(MediaType.APPLICATION_JSON)
     public Response searchFiles(@QueryParam("pattern") final String pattern) {
-        return Response.status(200).build();
+        System.out.println("Searching " + pattern);
+        ArrayList<FileBean> fileNames = new ArrayList<>();
+        fileNames.add(new FileBean("file1", 10000));
+        fileNames.add(new FileBean("file2", 20000));
+        fileNames.add(new FileBean("file3", 20000));
+        ArrayList<FileBean> result = fileNames;
+        GenericEntity<ArrayList<FileBean>> entity
+                = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {};
+
+        return Response.status(200).entity(entity).build();
     }
 
     @POST

@@ -19,4 +19,21 @@ public class StateLog implements Serializable {
     public String toString(){
        return args+"TIMESTAMP: "+timestamp+"\n";
     }
+
+    public ArrayList<String> getArgs() {
+        return args;
+    }
+
+    public void setArgs(ArrayList<String> args) {
+        this.args = args;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
 }

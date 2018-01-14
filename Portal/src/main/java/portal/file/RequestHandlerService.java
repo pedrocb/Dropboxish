@@ -53,8 +53,11 @@ public class RequestHandlerService extends PortalServiceGrpc.PortalServiceImplBa
                     System.out.println("Sent chunk " + Arrays.toString(chunk.toByteArray()));
                     from = from + 1024;
                 }
-                controllerStub.uploadFile(builder.build());
-                response = Response.status(200).build();
+                if(controllerStub.uploadFile(builder.build()).getStatusValue() == 0) {
+                    response = Response.status(200).build();
+                } else {
+                    response = Response.status(401).build();
+                }
                 System.out.println("Message Over");
             } catch (Exception e) {
                 e.printStackTrace();
