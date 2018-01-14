@@ -29,6 +29,11 @@ public class DeleteFileCommand implements Command {
                     .post(Entity.json(body.toString()));
 
             System.out.println(response.getStatus());
+            if(response.getStatus() == 200){
+                System.out.println("File deleted");
+            } else if (response.getStatus() == 504){
+                System.out.println("Error deleting file");
+            }
         }
     }
 }

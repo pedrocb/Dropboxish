@@ -53,7 +53,7 @@ public class ReceiverThread extends Thread {
 
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.114").setPort(port).build();
+                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.110").setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
                 System.out.println("Received reply from portal");
                 synchronized (state) {
@@ -78,7 +78,6 @@ public class ReceiverThread extends Thread {
             try {
                 DownloadFileRequest downloadFileRequest = (DownloadFileRequest) request;
                 System.out.println("Got download");
-                lock.lock();
                 String fileName = downloadFileRequest.getFileName();
                 long timestamp = downloadFileRequest.getTimestamp();
                 String address = downloadFileRequest.getAddress();
@@ -86,6 +85,9 @@ public class ReceiverThread extends Thread {
                 DownloadFileServiceGrpc.DownloadFileServiceBlockingStub portalStub = DownloadFileServiceGrpc.newBlockingStub(portalChannel);
                 System.out.println(fileName);
                 byte[] fileData = downloadFileWork(fileName);
+                if(fileData == null){
+                    portalStub.uploadFile(FileData_.newBuilder().build());
+                }
                 FileData_.Builder builder = FileData_.newBuilder();
                 int from = 0;
                 while (from < fileData.length) {
@@ -100,18 +102,46 @@ public class ReceiverThread extends Thread {
                 portalStub.uploadFile(builder.build());
             } catch (Exception e) {
                 e.printStackTrace();
-            } finally {
-                System.out.println("lock unlocked");
-                lock.unlock();
             }
         } else if (request.getType() == JGroupRequest.RequestType.ListFiles) {
             ListFilesRequest listFilesRequest = (ListFilesRequest) request;
-            lock.lock();
             long timestamp = listFilesRequest.getTimestamp();
             String address = listFilesRequest.getAddress();
             ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
             ListFileServiceGrpc.ListFileServiceBlockingStub portalStub = ListFileServiceGrpc.newBlockingStub(portalChannel);
             portalStub.sendFilesInfo(FilesInfo.newBuilder().addAllFiles(getListFiles()).build());
+        } else if (request.getType() == JGroupRequest.RequestType.DeleteFile) {
+            System.out.println("deleting file");
+            lock.lock();
+            try {
+                synchronized (state) {
+                    for (StateLog log : state.getLogs()) {
+                        if (request.getTimestamp() == log.getTimestamp()) {
+                            lock.unlock();
+                            return;
+                        }
+                    }
+                }
+                DeleteFileRequest deleteFileRequest = (DeleteFileRequest) request;
+                String address = deleteFileRequest.getAddress();
+                ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
+                DeleteFileServiceGrpc.DeleteFileServiceBlockingStub portalStub = DeleteFileServiceGrpc.newBlockingStub(portalChannel);
+                deleteFileWork(deleteFileRequest.getFileName());
+                portalStub.sendFileInfo(OperationResult.newBuilder().setSuccess(true).build());
+
+                synchronized (state) {
+                    Message msg = new Message(null, new StateTransferRequest(state));
+                    msg.setFlag(Message.Flag.RSVP);
+                    channel.send(null, new StateTransferRequest(state));
+                }
+                TimeUnit.SECONDS.sleep(2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
+            }
         } else {
             StateTransferRequest stateTransferRequest = (StateTransferRequest) request;
             try {
@@ -148,6 +178,27 @@ public class ReceiverThread extends Thread {
             filesInfos.add(FileInfo.newBuilder().setFileName(key).setFileSize((int) (hashMap.get(key) * 1024.0 * 4.0 / 6.0)).build());
         }
         return filesInfos;
+    }
+
+    private void deleteFileWork(String fileId){
+        ArrayList<StateLog> logs = state.getLogs();
+        Iterator it = logs.iterator();
+        ArrayList<StateLog> newLogs = new ArrayList<>();
+        long timestamp = request.getTimestamp();
+        while (it.hasNext()){
+           StateLog log = (StateLog)it.next();
+           ArrayList<String>args = log.getArgs();
+           if(args.get(1).startsWith("FILEID-"+fileId)){
+               ArrayList<String>newArgs = (ArrayList<String>)args.clone();
+               newArgs.set(0,"ACTION-DELETE");
+               StateLog newLog = new StateLog(newArgs,timestamp);
+               newLogs.add(newLog);
+           }
+        }
+        it = newLogs.iterator();
+        while (it.hasNext()){
+            logs.add((StateLog)it.next());
+        }
     }
 
     private byte[] downloadFileWork(String fileId) {

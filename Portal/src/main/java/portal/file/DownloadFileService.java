@@ -12,6 +12,7 @@ import java.io.IOException;
 public class DownloadFileService extends DownloadFileServiceGrpc.DownloadFileServiceImplBase {
 
     private byte[] fileData = null;
+    private int numberChunks;
     private Thread thread = new Thread();
 
     public DownloadFileService(Thread thread) {
@@ -25,6 +26,8 @@ public class DownloadFileService extends DownloadFileServiceGrpc.DownloadFileSer
                 thread.notify();
             }
             int nChunks = request.getDataCount();
+            this.numberChunks = nChunks;
+            System.out.println("nChunks "+nChunks);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             for (int i = 0; i < nChunks; i++) {
                 try {
@@ -39,6 +42,9 @@ public class DownloadFileService extends DownloadFileServiceGrpc.DownloadFileSer
         responseObserver.onCompleted();
     }
 
+    public int getNumberChunks(){
+        return numberChunks;
+    }
 
     public byte[] getFile() {
         return fileData;

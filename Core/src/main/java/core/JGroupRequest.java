@@ -12,7 +12,8 @@ public class JGroupRequest implements Serializable {
         UploadFile,
         RegisterPool,
         DownloadFile,
-        ListFiles
+        ListFiles,
+        DeleteFile
     }
     public JGroupRequest() {
         this.timestamp = System.currentTimeMillis() / 1000L;

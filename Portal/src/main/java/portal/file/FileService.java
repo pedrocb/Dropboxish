@@ -1,6 +1,7 @@
 package portal.file;
 
 import com.google.common.collect.Lists;
+import com.sun.org.apache.regexp.internal.RE;
 import core.*;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -10,6 +11,7 @@ import org.jgroups.Message;
 import org.jgroups.blocks.MessageDispatcher;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.ResponseMode;
+import sun.awt.windows.ThemeReader;
 
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -44,7 +46,54 @@ public class FileService {
         }
         String fileName = fileObject.getString("file");
         System.out.println("Deleting " + fileName);
-        return Response.status(200).build();
+        DeleteFileService service = new DeleteFileService(Thread.currentThread());
+        Server server = ServerBuilder.forPort(0).addService(service).build();
+        try {
+            server.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        sendMessage(new DeleteFileRequest("192.168.1.110:" + server.getPort(), fileName));
+        boolean waiting = true;
+        Response response = Response.status(504).build();
+        while (waiting) {
+            synchronized (service) {
+                if (service.getFilesInfo() == null) {
+                    System.out.println("Did not have a response");
+                } else {
+                    if (service.getSuccess()) {
+                        response = Response.status(200).build();
+                    } else {
+                        response = Response.status(503).build();
+                    }
+                    waiting = false;
+                    break;
+                }
+            }
+            long tBefore = System.currentTimeMillis();
+            synchronized (Thread.currentThread()) {
+                System.out.println("Waiting");
+                try {
+                    Thread.currentThread().wait(1000 * 10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("Wait stopped");
+            }
+            long timePassed = (System.currentTimeMillis() - tBefore);
+            System.out.println(timePassed);
+            if (timePassed >= 10000) {
+                System.out.println("Did not get notified so no controller responded");
+                response = Response.status(503).build();
+                waiting = false;
+                //No controller responded in 10 seconds
+            } else {
+                System.out.println("Got notified... Waiting for response");
+                //A controller responded
+            }
+        }
+        return response;
+
     }
 
     @POST
@@ -76,22 +125,26 @@ public class FileService {
                 if (service.getFile() == null) {
                     System.out.println("Did not have a response");
                 } else {
-                    fileData = service.getFile();
-                    ByteArrayInputStream in = new ByteArrayInputStream(fileData);
-                    StreamingOutput streamingOutput = out -> {
-                        byte[] fileBytes = new byte[1024];
-                        int read;
-                        while ((read = in.read(fileBytes)) != -1) {
-                            try {
-                                out.write(fileBytes, 0, read);
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                    if (service.getNumberChunks() == 0) {
+                        response = Response.status(505).build();
+                    } else {
+                        fileData = service.getFile();
+                        ByteArrayInputStream in = new ByteArrayInputStream(fileData);
+                        StreamingOutput streamingOutput = out -> {
+                            byte[] fileBytes = new byte[1024];
+                            int read;
+                            while ((read = in.read(fileBytes)) != -1) {
+                                try {
+                                    out.write(fileBytes, 0, read);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                out.flush();
                             }
-                            out.flush();
-                        }
-                        out.close();
-                    };
-                    response = Response.status(200).entity(streamingOutput).build();
+                            out.close();
+                        };
+                        response = Response.status(200).entity(streamingOutput).build();
+                    }
                     waiting = false;
                     break;
                 }
@@ -129,21 +182,22 @@ public class FileService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        sendMessage(new ListFilesRequest("192.168.1.114:" + server.getPort()));
+        sendMessage(new ListFilesRequest("192.168.1.110:" + server.getPort()));
         boolean waiting = true;
         Response response = Response.status(504).build();
         while (waiting) {
             synchronized (service) {
-                if (service.getFilesInfo()== null) {
+                if (service.getFilesInfo() == null) {
                     System.out.println("Did not have a response");
                 } else {
                     ArrayList<FileInfo> filesInfos = service.getFilesInfo();
                     ArrayList<FileBean> result = new ArrayList<>();
-                    for(FileInfo fileInfo : filesInfos) {
+                    for (FileInfo fileInfo : filesInfos) {
                         result.add(new FileBean(fileInfo.getFileName(), fileInfo.getFileSize()));
                     }
                     GenericEntity<ArrayList<FileBean>> entity
-                            = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {};
+                            = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {
+                    };
                     response = Response.status(200).entity(entity).build();
                     waiting = false;
                     break;
@@ -186,25 +240,26 @@ public class FileService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        sendMessage(new ListFilesRequest("192.168.1.114:" + server.getPort()));
+        sendMessage(new ListFilesRequest("192.168.1.110:" + server.getPort()));
         boolean waiting = true;
         Response response = Response.status(504).build();
         while (waiting) {
             synchronized (service) {
-                if (service.getFilesInfo()== null) {
+                if (service.getFilesInfo() == null) {
                     System.out.println("Did not have a response");
                 } else {
                     ArrayList<FileInfo> filesInfos = service.getFilesInfo();
                     ArrayList<FileBean> result = new ArrayList<>();
                     Pattern patternObj = Pattern.compile(pattern);
-                    for(FileInfo fileInfo : filesInfos) {
+                    for (FileInfo fileInfo : filesInfos) {
                         Matcher matcher = patternObj.matcher(fileInfo.getFileName());
-                        if(matcher.matches()) {
+                        if (matcher.matches()) {
                             result.add(new FileBean(fileInfo.getFileName(), fileInfo.getFileSize()));
                         }
                     }
                     GenericEntity<ArrayList<FileBean>> entity
-                            = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {};
+                            = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {
+                    };
                     response = Response.status(200).entity(entity).build();
                     waiting = false;
                     break;
@@ -257,7 +312,7 @@ public class FileService {
             RequestHandlerService service = new RequestHandlerService(data, Thread.currentThread());
             Server server = ServerBuilder.forPort(0).addService(service).build();
             server.start();
-            UploadFileRequest request = new UploadFileRequest(fileName, "192.168.1.114:"+server.getPort());
+            UploadFileRequest request = new UploadFileRequest(fileName, "192.168.1.110:" + server.getPort());
             sendMessage(request);
             boolean waiting = true;
             while (waiting) {
