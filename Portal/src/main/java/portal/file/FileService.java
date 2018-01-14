@@ -103,6 +103,7 @@ public class FileService {
     @Path("upload/{fileName}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public Response uploadFile(@PathParam("fileName") String fileName, InputStream fileInputStream) {
+        Response response = Response.status(504).build();
         try {
             int read;
             byte[] bytes = new byte[1024];
@@ -122,9 +123,17 @@ public class FileService {
             server.start();
             UploadFileRequest request = new UploadFileRequest(fileName, "localhost:"+server.getPort());
             sendMessage(request);
-
             boolean waiting = true;
             while (waiting) {
+                synchronized (service) {
+                    if (service.getResponse() == null) {
+                        System.out.println("Did not have a response");
+                    } else {
+                        response = service.getResponse();
+                        waiting = false;
+                        break;
+                    }
+                }
                 System.out.println("Waiting for controller response");
                 long tBefore = System.currentTimeMillis();
                 synchronized (Thread.currentThread()) {
@@ -136,27 +145,18 @@ public class FileService {
                 if (timePassed >= 10000) {
                     System.out.println("Did not get notified so no controller responded");
                     waiting = false;
+                    response = Response.status(503).build();
                     //No controller responded in 10 seconds
                 } else {
                     System.out.println("Got notified... Waiting for response");
                     //A controller responded
-                    synchronized (service) {
-                        if (service.getResponse() == null) {
-                            System.out.println("Did not have a response");
-                        } else {
-                            System.out.println(service.getResponse());
-                            waiting = false;
-                        }
-                    }
                 }
             }
-
-            server.awaitTermination();
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-        return Response.status(200).build();
+        return response;
     }
 
     private void sendMessage(JGroupRequest request) {
@@ -164,7 +164,7 @@ public class FileService {
             JChannel channel = new JChannel("tcp.xml");
             channel.connect("ControllerCluster");
             channel.send(new Message(null, request));
-            TimeUnit.SECONDS.sleep(0);
+            TimeUnit.SECONDS.sleep(1);
             channel.disconnect();
         } catch (Exception e) {
             e.printStackTrace();
