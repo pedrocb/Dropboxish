@@ -1,13 +1,17 @@
 import com.backblaze.erasure.ReedSolomon;
 import com.google.protobuf.ByteString;
 import core.*;
+import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.rmi.registry.LocateRegistry;
+import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -15,12 +19,14 @@ import java.util.concurrent.locks.Lock;
 public class ReceiverThread extends Thread {
     private ControllerState state;
     private JGroupRequest request;
+    private JChannel channel;
     private Lock lock;
 
-    public ReceiverThread(JGroupRequest request, Lock lock, ControllerState state) {
+    public ReceiverThread(JGroupRequest request, Lock lock, ControllerState state, JChannel channel) {
         this.request = request;
         this.lock = lock;
         this.state = state;
+        this.channel = channel;
     }
 
     @Override
@@ -29,6 +35,14 @@ public class ReceiverThread extends Thread {
             UploadFileRequest uploadFileRequest = (UploadFileRequest)request;
             lock.lock();
             System.out.println("got lock on Receiver Thread");
+            synchronized (state) {
+                for(StateLog log : state.getLogs()) {
+                    if(request.getTimestamp() == log.getTimestamp()) {
+                        lock.unlock();
+                        return;
+                    }
+                }
+            }
             String address = uploadFileRequest.getAddress();
             String fileName = uploadFileRequest.getFileName();
             long timestamp = uploadFileRequest.getTimestamp();
@@ -42,12 +56,17 @@ public class ReceiverThread extends Thread {
                 RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.114").setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
                 System.out.println("Received reply from portal");
+                synchronized (state) {
+                    Message msg = new Message(null, new StateTransferRequest(state));
+                    msg.setFlag(Message.Flag.RSVP);
+                    channel.send(null, new StateTransferRequest(state));
+                }
+                TimeUnit.SECONDS.sleep(2);
             }catch (Exception e){
                 System.out.println("it caput");
                 e.printStackTrace();
             } finally {
                 lock.unlock();
-                System.out.println("unlocked Receiver Thread");
             }
         } else if (request.getType() == JGroupRequest.RequestType.RegisterPool) {
             RegisterPoolRequest registerPoolRequest = (RegisterPoolRequest) request;
@@ -58,6 +77,7 @@ public class ReceiverThread extends Thread {
         } else if(request.getType() == JGroupRequest.RequestType.DownloadFile) {
             try {
                 DownloadFileRequest downloadFileRequest = (DownloadFileRequest) request;
+                System.out.println("Got download");
                 lock.lock();
                 String fileName = downloadFileRequest.getFileName();
                 long timestamp = downloadFileRequest.getTimestamp();
@@ -78,18 +98,33 @@ public class ReceiverThread extends Thread {
                     from = from + 1024;
                 }
                 portalStub.uploadFile(builder.build());
+            } catch (Exception e) {
+                e.printStackTrace();
             } finally {
+                System.out.println("lock unlocked");
                 lock.unlock();
             }
         } else if (request.getType() == JGroupRequest.RequestType.ListFiles) {
             ListFilesRequest listFilesRequest = (ListFilesRequest) request;
+            lock.lock();
             long timestamp = listFilesRequest.getTimestamp();
             String address = listFilesRequest.getAddress();
             ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
             ListFileServiceGrpc.ListFileServiceBlockingStub portalStub = ListFileServiceGrpc.newBlockingStub(portalChannel);
             portalStub.sendFilesInfo(FilesInfo.newBuilder().addAllFiles(getListFiles()).build());
         } else {
-            System.out.println("Got something else");
+            StateTransferRequest stateTransferRequest = (StateTransferRequest) request;
+            try {
+                synchronized (state) {
+                    state.getLogs().clear();
+                    state.getPools().clear();
+                    state.getPools().addAll(stateTransferRequest.getState().getPools());
+                    state.getLogs().addAll(stateTransferRequest.getState().getLogs());
+                }
+                System.out.println("Updated state");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

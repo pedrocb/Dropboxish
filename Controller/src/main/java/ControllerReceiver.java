@@ -8,6 +8,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
@@ -30,10 +31,12 @@ import java.util.concurrent.locks.Lock;
 public class ControllerReceiver extends ReceiverAdapter {
     ControllerState state = new ControllerState();
     Lock lock;
+    private JChannel channel;
 
-    public ControllerReceiver(ControllerState state) {
+    public ControllerReceiver(ControllerState state, JChannel channel) {
         this.state = state;
         this.lock = lock;
+        this.channel = channel;
     }
 
     @Override
@@ -67,7 +70,7 @@ public class ControllerReceiver extends ReceiverAdapter {
     public void receive(Message msg) {
         System.out.println("got msg ");
         JGroupRequest request = msg.getObject();
-        new ReceiverThread(request, lock, state).start();
+        new ReceiverThread(request, lock, state, channel).start();
         System.out.println("Leaving receive");
     }
 

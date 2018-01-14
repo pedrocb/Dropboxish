@@ -42,16 +42,15 @@ public class Controller {
     }
 
     private void start() throws Exception {
-        channel = new JChannel("tcp.xml");
+        channel = new JChannel("controller.xml");
         channel.connect(CLUSTER_NAME);
         state = new ControllerState();
-        receiver = new ControllerReceiver(state);
+        receiver = new ControllerReceiver(state, channel);
         channel.setReceiver(receiver);
         channel.getState(null, 0);
         LockService lockService = new LockService(channel);
         Lock lock = lockService.getLock("WorkerLock");
         receiver.setLock(lock);
-
         System.out.println(receiver.state);
         while(true){
             sendMessage();
