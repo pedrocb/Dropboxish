@@ -23,8 +23,9 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import static org.jgroups.Message.Flag.RSVP;
 import static org.jgroups.Message.Flag.RSVP_NB;
 
 @Path("file")
@@ -178,15 +179,60 @@ public class FileService {
     @Produces(MediaType.APPLICATION_JSON)
     public Response searchFiles(@QueryParam("pattern") final String pattern) {
         System.out.println("Searching " + pattern);
-        ArrayList<FileBean> fileNames = new ArrayList<>();
-        fileNames.add(new FileBean("file1", 10000));
-        fileNames.add(new FileBean("file2", 20000));
-        fileNames.add(new FileBean("file3", 20000));
-        ArrayList<FileBean> result = fileNames;
-        GenericEntity<ArrayList<FileBean>> entity
-                = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {};
-
-        return Response.status(200).entity(entity).build();
+        ListFileService service = new ListFileService(Thread.currentThread());
+        Server server = ServerBuilder.forPort(0).addService(service).build();
+        try {
+            server.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        sendMessage(new ListFilesRequest("192.168.1.114:" + server.getPort()));
+        boolean waiting = true;
+        Response response = Response.status(504).build();
+        while (waiting) {
+            synchronized (service) {
+                if (service.getFilesInfo()== null) {
+                    System.out.println("Did not have a response");
+                } else {
+                    ArrayList<FileInfo> filesInfos = service.getFilesInfo();
+                    ArrayList<FileBean> result = new ArrayList<>();
+                    Pattern patternObj = Pattern.compile(pattern);
+                    for(FileInfo fileInfo : filesInfos) {
+                        Matcher matcher = patternObj.matcher(fileInfo.getFileName());
+                        if(matcher.matches()) {
+                            result.add(new FileBean(fileInfo.getFileName(), fileInfo.getFileSize()));
+                        }
+                    }
+                    GenericEntity<ArrayList<FileBean>> entity
+                            = new GenericEntity<ArrayList<FileBean>>(Lists.newArrayList(result)) {};
+                    response = Response.status(200).entity(entity).build();
+                    waiting = false;
+                    break;
+                }
+            }
+            long tBefore = System.currentTimeMillis();
+            synchronized (Thread.currentThread()) {
+                System.out.println("Waiting");
+                try {
+                    Thread.currentThread().wait(1000 * 10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("Wait stopped");
+            }
+            long timePassed = (System.currentTimeMillis() - tBefore);
+            System.out.println(timePassed);
+            if (timePassed >= 10000) {
+                System.out.println("Did not get notified so no controller responded");
+                response = Response.status(503).build();
+                waiting = false;
+                //No controller responded in 10 seconds
+            } else {
+                System.out.println("Got notified... Waiting for response");
+                //A controller responded
+            }
+        }
+        return response;
     }
 
     @POST
