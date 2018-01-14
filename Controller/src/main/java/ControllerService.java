@@ -31,38 +31,26 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
     }
 
     @Override
-    public StreamObserver<FileData> uploadFile(final StreamObserver<StatusMessage> responseObserver) {
-        return new StreamObserver<FileData>() {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-            @Override
-            public void onNext(FileData fileData) {
-                try {
-                    out.write(fileData.getData().toByteArray());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+    public void uploadFile(FileData request, StreamObserver<StatusMessage> responseObserver) {
+        int nChunks = request.getDataCount();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for (int i = 0; i < nChunks; i++) {
+            try {
+                out.write(request.getData(i).toByteArray());
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-
-            @Override
-            public void onError(Throwable throwable) {
-                System.out.println("Controller service onError called");
-            }
-
-            @Override
-            public void onCompleted() {
-                byte[] data = out.toByteArray();
-                System.out.println("File received: " + Arrays.toString(data));
-                if (uploadFileWork(data) == 1) {
-                    responseObserver.onNext(StatusMessage.newBuilder().setStatusValue(0).build());
-                    responseObserver.onCompleted();
-                } else {
-                    responseObserver.onError(new Exception("upload file failed"));
-                }
-
-            }
-        };
+        }
+        byte[] data = out.toByteArray();
+        if (uploadFileWork(data) == 1) {
+            responseObserver.onNext(StatusMessage.newBuilder().setStatus(StatusMessage.Status.OK).build());
+        } else {
+            responseObserver.onError(new Exception("upload file failed"));
+        }
+        System.out.println("File uploaded");
+        responseObserver.onCompleted();
     }
+
 
     private int uploadFileWork(byte[] file) {
         synchronized (state) {

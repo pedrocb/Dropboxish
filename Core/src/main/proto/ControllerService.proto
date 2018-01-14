@@ -6,7 +6,7 @@ package core;
 
 service ControllerService {
     rpc registerPool(PoolInfo) returns (Empty);
-    rpc uploadFile(stream FileData) returns (StatusMessage);
+    rpc uploadFile(FileData) returns (StatusMessage);
 }
 
 message Empty {
@@ -22,7 +22,7 @@ message Endpoint {
 }
 
 message FileData {
-    bytes data = 1;
+    repeated bytes data = 1;
 }
 
 message StatusMessage {
