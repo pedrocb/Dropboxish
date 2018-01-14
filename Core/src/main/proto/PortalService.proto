@@ -12,6 +12,19 @@ service DownloadFileService {
     rpc uploadFile (FileData_) returns (RequestReply);
 }
 
+service ListFileService {
+    rpc sendFilesInfo(FilesInfo) returns (RequestReply);
+}
+
+message FilesInfo {
+    repeated FileInfo files = 1;
+}
+
+message FileInfo {
+    string fileName = 1;
+    int32 fileSize = 2;
+}
+
 message RequestReply {
     bool sucess = 1;
 }

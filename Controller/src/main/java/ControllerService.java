@@ -73,7 +73,7 @@ public class ControllerService extends ControllerServiceGrpc.ControllerServiceIm
                     while (!done) {
                         if (poolsLeft.size() > 0) {
                             String chosenPool = poolsLeft.remove((int) Math.floor(Math.random() * state.getPools().size()));
-                            String fileId = fileName + "|" + blockNumber;
+                            String fileId = fileName + "#" + blockNumber;
                             try {
                                 ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(chosenPool).usePlaintext(true).build();
                                 PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);

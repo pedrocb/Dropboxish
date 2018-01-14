@@ -8,9 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.rmi.registry.LocateRegistry;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
@@ -83,9 +81,38 @@ public class ReceiverThread extends Thread {
             } finally {
                 lock.unlock();
             }
+        } else if (request.getType() == JGroupRequest.RequestType.ListFiles) {
+            ListFilesRequest listFilesRequest = (ListFilesRequest) request;
+            long timestamp = listFilesRequest.getTimestamp();
+            String address = listFilesRequest.getAddress();
+            ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
+            ListFileServiceGrpc.ListFileServiceBlockingStub portalStub = ListFileServiceGrpc.newBlockingStub(portalChannel);
+            portalStub.sendFilesInfo(FilesInfo.newBuilder().addAllFiles(getListFiles()).build());
         } else {
             System.out.println("Got something else");
         }
+    }
+
+    private ArrayList<FileInfo> getListFiles() {
+        ArrayList<StateLog> logs = state.getLogs();
+        logs.sort(Comparator.comparingLong(StateLog::getTimestamp));
+        System.out.println(logs);
+        Iterator logsIterator = logs.iterator();
+        HashMap<String, Integer> hashMap = new HashMap<String, Integer>();
+        ArrayList<FileInfo> filesInfos = new ArrayList<>();
+        while (logsIterator.hasNext()){
+            StateLog log = (StateLog)logsIterator.next();
+            ArrayList<String> args = log.getArgs();
+            if(args.get(0).equals("ACTION-WRITE")){
+                String fileName = args.get(1).split("#")[0].substring(7);
+                System.out.println(fileName);
+                hashMap.put(fileName, hashMap.getOrDefault(fileName, 0) + 1);
+            }
+        }
+        for(String key : hashMap.keySet()) {
+            filesInfos.add(FileInfo.newBuilder().setFileName(key).setFileSize((int) (hashMap.get(key) * 1024.0 * 4.0 / 6.0)).build());
+        }
+        return filesInfos;
     }
 
     private byte[] downloadFileWork(String fileId) {
@@ -99,7 +126,7 @@ public class ReceiverThread extends Thread {
             ArrayList<String> args = log.getArgs();
             if(args.get(1).startsWith("FILEID-"+fileId)){
                 fileIdLogs.add(log);
-                String[] tokens = args.get(1).split("|");
+                String[] tokens = args.get(1).split("#");
                 if(Integer.parseInt(tokens[tokens.length-1]) > numChunks){
                     numChunks = Integer.parseInt(tokens[tokens.length-1]);
                 }
@@ -114,7 +141,7 @@ public class ReceiverThread extends Thread {
         Iterator fileIdLogsIterator = fileIdLogs.iterator();
         while (fileIdLogsIterator.hasNext()){
             StateLog log = (StateLog)fileIdLogsIterator.next();
-            String[] tokens = log.getArgs().get(1).split("|");
+            String[] tokens = log.getArgs().get(1).split("#");
             int blockId = Integer.parseInt(tokens[tokens.length-1]);
             blockIdLogs[blockId].add(log);
         }
@@ -139,7 +166,7 @@ public class ReceiverThread extends Thread {
                 }
                 if(lastLog.getArgs().get(0).equals("ACTION-WRITE")){
                     String address = lastLog.getArgs().get(3).substring(5);
-                    String poolFileId = fileId+"|"+blockId;
+                    String poolFileId = fileId+"#"+blockId;
                     try {
                         ManagedChannel poolChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                         PoolServiceGrpc.PoolServiceBlockingStub poolStub = PoolServiceGrpc.newBlockingStub(poolChannel);

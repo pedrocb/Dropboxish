@@ -53,6 +53,8 @@ public class ControllerReceiver extends ReceiverAdapter {
         synchronized (this.state) {
             this.state.getPools().clear();
             this.state.getPools().addAll(state.getPools());
+            this.state.getLogs().clear();
+            this.state.getLogs().addAll(state.getLogs());
         }
         System.out.println(state);
     }
