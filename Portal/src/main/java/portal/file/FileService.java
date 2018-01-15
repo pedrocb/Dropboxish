@@ -21,6 +21,7 @@ import javax.ws.rs.core.*;
 import java.io.*;
 import java.sql.Time;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -32,6 +33,9 @@ import static org.jgroups.Message.Flag.RSVP_NB;
 
 @Path("file")
 public class FileService {
+    private static Properties config;
+
+
     @POST
     @Path("delete")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -53,7 +57,7 @@ public class FileService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        sendMessage(new DeleteFileRequest("192.168.1.110:" + server.getPort(), fileName));
+        sendMessage(new DeleteFileRequest(getPortalSelfAddress()+":" + server.getPort(), fileName));
         boolean waiting = true;
         Response response = Response.status(504).build();
         while (waiting) {
@@ -116,7 +120,7 @@ public class FileService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        sendMessage(new DownloadFileRequest(fileName, "localhost:" + server.getPort()));
+        sendMessage(new DownloadFileRequest(fileName, getPortalSelfAddress()+":" + server.getPort()));
         boolean waiting = true;
         byte[] fileData = null;
         Response response = Response.status(504).build();
@@ -182,7 +186,7 @@ public class FileService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        sendMessage(new ListFilesRequest("192.168.1.110:" + server.getPort()));
+        sendMessage(new ListFilesRequest(getPortalSelfAddress()+":" + server.getPort()));
         boolean waiting = true;
         Response response = Response.status(504).build();
         while (waiting) {
@@ -240,7 +244,7 @@ public class FileService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        sendMessage(new ListFilesRequest("192.168.1.110:" + server.getPort()));
+        sendMessage(new ListFilesRequest(getPortalSelfAddress()+":" + server.getPort()));
         boolean waiting = true;
         Response response = Response.status(504).build();
         while (waiting) {
@@ -312,7 +316,7 @@ public class FileService {
             RequestHandlerService service = new RequestHandlerService(data, Thread.currentThread());
             Server server = ServerBuilder.forPort(0).addService(service).build();
             server.start();
-            UploadFileRequest request = new UploadFileRequest(fileName, "192.168.1.110:" + server.getPort());
+            UploadFileRequest request = new UploadFileRequest(fileName, getPortalSelfAddress()+":" + server.getPort());
             sendMessage(request);
             boolean waiting = true;
             while (waiting) {
@@ -368,5 +372,23 @@ public class FileService {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+
+    private String getPortalSelfAddress () {
+        try {
+            loadConfig();
+            return config.getProperty("portalSelfAddress","localhost");
+        } catch (Exception e){
+            System.out.println("Portal config does not exist");
+            return "localhost";
+        }
+    }
+
+    public static void loadConfig() throws IOException {
+        config = new Properties();
+        FileInputStream configFile = new FileInputStream("portal.config");
+        config.load(configFile);
+        configFile.close();
     }
 }

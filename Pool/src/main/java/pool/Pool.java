@@ -6,7 +6,9 @@ import io.grpc.ServerBuilder;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Properties;
 
 import static org.jgroups.Message.Flag.RSVP;
 import static org.jgroups.Message.Flag.RSVP_NB;
@@ -14,10 +16,18 @@ import static org.jgroups.Message.Flag.RSVP_NB;
 public class Pool {
 
     private Server server;
-    private String address = "10.30.33.184";
+    private String address;
+    private static Properties config;
     public static String dataDirectory = "data";
 
     public Pool() {
+        try {
+            loadConfig();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        address = config.getProperty("selfAddress","localhost");
+        System.out.println("Pool address: "+address);
        this.server = ServerBuilder.forPort(0).addService(new PoolService()).build();
     }
 
@@ -76,5 +86,12 @@ public class Pool {
         if(server!=null) {
             server.shutdown();
         }
+    }
+
+    public static void loadConfig() throws IOException {
+        config = new Properties();
+        FileInputStream configFile = new FileInputStream("pool.config");
+        config.load(configFile);
+        configFile.close();
     }
 }
