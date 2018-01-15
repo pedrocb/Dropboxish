@@ -8,10 +8,9 @@ import org.jgroups.JChannel;
 import org.jgroups.Message;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.rmi.registry.LocateRegistry;
-import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -21,12 +20,23 @@ public class ReceiverThread extends Thread {
     private JGroupRequest request;
     private JChannel channel;
     private Lock lock;
+    private String selfAddress;
+    public static Properties config;
 
     public ReceiverThread(JGroupRequest request, Lock lock, ControllerState state, JChannel channel) {
         this.request = request;
         this.lock = lock;
         this.state = state;
         this.channel = channel;
+
+        try{
+            loadConfig();
+            selfAddress = config.getProperty("selfAddress","http://localhost");
+        } catch (Exception e){
+            System.out.println("Controller config missing, defaulting to http://localhost");
+            selfAddress = "http://localhost";
+        }
+        System.out.println("Self address = "+ selfAddress);
     }
 
     @Override
@@ -53,7 +63,7 @@ public class ReceiverThread extends Thread {
 
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
-                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress("192.168.1.110").setPort(port).build();
+                RequestInfo requestInfo = RequestInfo.newBuilder().setAddress(selfAddress).setPort(port).build();
                 RequestReply requestReply = portalStub.handleRequest(requestInfo);
                 System.out.println("Received reply from portal");
                 synchronized (state) {
@@ -314,5 +324,12 @@ public class ReceiverThread extends Thread {
 
         System.out.println("Recovered File: " + Arrays.toString(data));
         return data;
+    }
+
+    public static void loadConfig() throws IOException {
+        config = new Properties();
+        FileInputStream configFile = new FileInputStream("controller.config");
+        config.load(configFile);
+        configFile.close();
     }
 }
