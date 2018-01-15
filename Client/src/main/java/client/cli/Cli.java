@@ -9,6 +9,9 @@ import sun.net.www.http.HttpClient;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
 import java.util.Scanner;
 
 public class Cli {
@@ -16,6 +19,8 @@ public class Cli {
     private boolean running = false;
     private WebTarget target;
     private Client httpClient;
+    public static Properties config;
+    private String portalEndpoint;
 
     public Cli() {
         this.httpClient = ClientBuilder.newClient()
@@ -24,8 +29,15 @@ public class Cli {
                 .register(MOXyJsonProvider.class)
                 .register(MultiPartFeature.class);
 
-        String address = "http://192.168.1.110:9999";
-        target = httpClient.target(address);
+        try{
+            loadConfig();
+            portalEndpoint = config.getProperty("portalEndpoint","http://localhost:9999");
+        } catch (Exception e){
+            System.out.println("Client config missing, defaulting to http://localhost:9999");
+            portalEndpoint = "http://localhost:9999";
+        }
+        System.out.println("Portal endpoint = "+portalEndpoint);
+        target = httpClient.target(portalEndpoint);
     }
 
     public void start() {
@@ -60,5 +72,12 @@ public class Cli {
                 command.run(target);
             }
         }
+    }
+
+    public static void loadConfig() throws IOException {
+        config = new Properties();
+        FileInputStream configFile = new FileInputStream("client.config");
+        config.load(configFile);
+        configFile.close();
     }
 }
