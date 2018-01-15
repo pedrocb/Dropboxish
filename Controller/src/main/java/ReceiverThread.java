@@ -60,7 +60,6 @@ public class ReceiverThread extends Thread {
                 ControllerWorker controllerWorker = new ControllerWorker(state, fileName, timestamp);
                 controllerWorker.start();
                 int port = controllerWorker.getPort();
-
                 ManagedChannel portalChannel = ManagedChannelBuilder.forTarget(address).usePlaintext(true).build();
                 PortalServiceGrpc.PortalServiceBlockingStub portalStub = PortalServiceGrpc.newBlockingStub(portalChannel);
                 RequestInfo requestInfo = RequestInfo.newBuilder().setAddress(selfAddress).setPort(port).build();

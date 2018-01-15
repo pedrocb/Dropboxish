@@ -14,7 +14,7 @@ import static org.jgroups.Message.Flag.RSVP_NB;
 public class Pool {
 
     private Server server;
-    private String address = "192.168.1.110";
+    private String address = "10.30.33.184";
     public static String dataDirectory = "data";
 
     public Pool() {
